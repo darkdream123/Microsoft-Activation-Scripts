@@ -1,0 +1,10 @@
+:_taskstart
+
+echo:
+echo %date%, %time%
+
+set /a loop=1
+set /a max_loop=4
+
+call :_tasksetserv
+

@@ -1,0 +1,52 @@
+:oe_excludeapps
+
+cls
+if not defined terminal mode 98, 32
+
+%line%
+echo:
+call :dk_color %Gray% "Target edition: %targetedition%"
+call :dk_color %Gray% "To exclude the apps listed below from installation, toggle them from On to Off."
+if defined editedition call :dk_color %Gray% "Note: The On/Off status below does not reflect the current status of the installed apps."
+%line%
+if defined suites echo:
+if defined Access_st            echo [A] Access              : %Access_st%
+if defined Excel_st             echo [E] Excel               : %Excel_st%
+if defined OneNote_st           echo [N] OneNote             : %OneNote_st%
+if defined Outlook_st           echo [O] Outlook ^(Classic^)   : %Outlook_st%
+if defined PowerPoint_st        echo [P] PowerPoint          : %PowerPoint_st%
+if defined Project_st           echo [J] Project             : %Project_st%
+if defined Publisher_st         echo [R] Publisher           : %Publisher_st%
+if defined Visio_st             echo [V] Visio               : %Visio_st%
+if defined Word_st              echo [W] Word                : %Word_st%
+echo:
+if defined Lync_st              echo [L] SkypeForBusiness    : %Lync_st%
+if defined OutlookForWindows_st echo [K] Outlook ^(New^)       : %OutlookForWindows_st%
+if defined OneDrive_st          echo [D] OneDrive            : %OneDrive_st%
+if defined Teams_st             echo [T] Teams               : %Teams_st%
+%line%
+echo:
+echo [1] Continue
+echo [0] Go Back
+%line%
+echo:
+call :dk_color %_Green% "Choose a menu option using your keyboard:"
+choice /C:AENOPJRVWLKDT10 /N
+set _el=!errorlevel!
+if !_el!==15 goto :oemenu
+if !_el!==14 call :excludelist & goto :oe_editionchangefinal
+if !_el!==13 if defined Teams_st             (if "%Teams_st%"=="Off"             (set Teams_st=ON)             else (set Teams_st=Off))
+if !_el!==12 if defined OneDrive_st          (if "%OneDrive_st%"=="Off"          (set OneDrive_st=ON)          else (set OneDrive_st=Off))
+if !_el!==11 if defined OutlookForWindows_st (if "%OutlookForWindows_st%"=="Off" (set OutlookForWindows_st=ON) else (set OutlookForWindows_st=Off))
+if !_el!==10 if defined Lync_st              (if "%Lync_st%"=="Off"              (set Lync_st=ON)              else (set Lync_st=Off))
+if !_el!==9  if defined Word_st              (if "%Word_st%"=="Off"              (set Word_st=ON)              else (set Word_st=Off))
+if !_el!==8  if defined Visio_st             (if "%Visio_st%"=="Off"             (set Visio_st=ON)             else (set Visio_st=Off))
+if !_el!==7  if defined Publisher_st         (if "%Publisher_st%"=="Off"         (set Publisher_st=ON)         else (set Publisher_st=Off))
+if !_el!==6  if defined Project_st           (if "%Project_st%"=="Off"           (set Project_st=ON)           else (set Project_st=Off))
+if !_el!==5  if defined PowerPoint_st        (if "%PowerPoint_st%"=="Off"        (set PowerPoint_st=ON)        else (set PowerPoint_st=Off))
+if !_el!==4  if defined Outlook_st           (if "%Outlook_st%"=="Off"           (set Outlook_st=ON)           else (set Outlook_st=Off))
+if !_el!==3  if defined OneNote_st           (if "%OneNote_st%"=="Off"           (set OneNote_st=ON)           else (set OneNote_st=Off))
+if !_el!==2  if defined Excel_st             (if "%Excel_st%"=="Off"             (set Excel_st=ON)             else (set Excel_st=Off))
+if !_el!==1  if defined Access_st            (if "%Access_st%"=="Off"            (set Access_st=ON)            else (set Access_st=Off))
+goto :oe_excludeapps
+

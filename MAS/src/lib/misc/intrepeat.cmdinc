@@ -1,0 +1,26 @@
+:_intrepeat
+
+::  Check Internet connection. Works even if ICMP echo is disabled.
+
+for %%a in (%srvlist%) do (
+for /f "delims=[] tokens=2" %%# in ('ping -n 1 %%a') do (
+if not "%%#"=="" goto _taskIntConnected
+)
+)
+
+nslookup dns.msftncsi.com 2>nul | find "131.107.255.255" 1>nul
+if "%errorlevel%"=="0" goto _taskIntConnected
+
+if %loop%==%max_loop% (
+set _tserror=1
+goto _taskend
+)
+
+echo:
+echo Error: Internet is not connected
+echo Waiting 30 seconds
+
+timeout /t 30 >nul
+set /a loop=%loop%+1
+goto _intrepeat
+

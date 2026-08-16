@@ -1,0 +1,51 @@
+:sfcscan
+
+cls
+if not defined terminal mode 98, 30
+title  sfc /scannow
+
+echo:
+echo %line%
+echo:    
+echo      SFC will repair missing or corrupted system files.
+echo      It is recommended you run the DISM option first before this one.
+echo      This will take 10-15 minutes or more..
+echo:
+echo      If SFC could not fix something, then run the command again to see if it may be able 
+echo      to the next time. Sometimes it may take running the sfc /scannow command 3 times
+echo      restarting the PC after each time to completely fix everything that it's able to.
+echo:   
+echo %line%
+echo:
+choice /C:09 /N /M ">    [9] Continue [0] Go back : "
+if %errorlevel%==1 goto at_menu
+
+cls
+for /f %%a in ('%psc% "(Get-Date).ToString('yyyyMMdd-HHmmssfff')"') do set _time=%%a
+
+%psc% Stop-Service TrustedInstaller -force %nul%
+
+copy /y /b "%SystemRoot%\logs\cbs\cbs.log" "%SystemRoot%\logs\cbs\backup_cbs_%_time%.log" %nul%
+del /f /q "%SystemRoot%\logs\cbs\cbs.log" %nul%
+
+echo:
+echo Applying the command...
+echo sfc /scannow
+sfc /scannow
+
+timeout /t 5 %nul1%
+copy /y /b "%SystemRoot%\logs\cbs\cbs.log" "%SystemRoot%\logs\cbs\cbs_%_time%.log" %nul%
+
+if not exist "!desktop!\AT_Logs\" md "!desktop!\AT_Logs\" %nul%
+call :compresslog cbs\cbs_%_time%.log AT_Logs\SFC_CBS %nul%
+
+if not exist "!desktop!\AT_Logs\SFC_CBS_%_time%.cab" (
+copy /y /b "%SystemRoot%\logs\cbs\cbs.log" "!desktop!\AT_Logs\SFC_CBS_%_time%.log" %nul%
+)
+
+echo:
+call :dk_color %Gray% "The CBS log was copied to the AT_Logs folder on your Desktop."
+goto :at_back
+
+::========================================================================================================================================
+

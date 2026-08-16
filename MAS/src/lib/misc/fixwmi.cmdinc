@@ -1,0 +1,120 @@
+:fixwmi
+
+cls
+if not defined terminal mode 98, 34
+title  Fix WMI
+
+::  https://techcommunity.microsoft.com/t5/ask-the-performance-team/wmi-repository-corruption-or-not/ba-p/375484
+
+if exist "%SystemRoot%\Servicing\Packages\Microsoft-Windows-Server*Edition~*.mum" (
+%eline%
+echo Rebuilding WMI is not recommended on Windows Server, aborting...
+goto :at_back
+)
+
+echo:
+echo Checking WMI
+call :checkwmi
+
+::  Apply basic fix first and check
+
+if defined error (
+%psc% Stop-Service Winmgmt -force %nul%
+winmgmt /salvagerepository %nul%
+call :checkwmi
+)
+
+if not defined error (
+echo [Working]
+echo No need to apply this option, aborting...
+goto :at_back
+)
+
+call :dk_color %Red% "[Not Responding]"
+
+set _corrupt=
+sc start Winmgmt %nul%
+if %errorlevel% EQU 1060 set _corrupt=1
+sc query Winmgmt %nul% || set _corrupt=1
+for %%G in (DependOnService Description DisplayName ErrorControl ImagePath ObjectName Start Type) do if not defined _corrupt (reg query HKLM\SYSTEM\CurrentControlSet\Services\Winmgmt /v %%G %nul% || set _corrupt=1)
+
+echo:
+if defined _corrupt (
+%eline%
+echo Winmgmt service is corrupted, aborting...
+goto :at_back
+)
+
+echo Disabling Winmgmt service
+sc config Winmgmt start= disabled %nul%
+if %errorlevel% EQU 0 (
+echo [Successful]
+) else (
+call :dk_color %Red% "[Failed] Aborting..."
+sc config Winmgmt start= auto %nul%
+goto :at_back
+)
+
+echo:
+echo Stopping Winmgmt service
+%psc% Stop-Service Winmgmt -force %nul%
+%psc% Stop-Service Winmgmt -force %nul%
+%psc% Stop-Service Winmgmt -force %nul%
+sc query Winmgmt | find /i "STOPPED" %nul% && (
+echo [Successful]
+) || (
+call :dk_color %Red% "[Failed]"
+call :dk_color %Blue% "Its recommended to select [Restart] option and then apply Fix WMI option again."
+echo %line%
+echo:
+choice /C:21 /N /M "> [1] Restart  [2] Revert Back Changes :"
+if !errorlevel!==1 (sc config Winmgmt start= auto %nul%&goto :at_back)
+echo:
+echo Restarting...
+shutdown -t 5 -r
+exit
+)
+
+echo:
+echo Deleting WMI repository
+rmdir /s /q "%SysPath%\wbem\repository\" %nul%
+if exist "%SysPath%\wbem\repository\" (
+call :dk_color %Red% "[Failed]"
+) else (
+echo [Successful]
+)
+
+echo:
+echo Enabling Winmgmt service
+sc config Winmgmt start= auto %nul%
+if %errorlevel% EQU 0 (
+echo [Successful]
+) else (
+call :dk_color %Red% "[Failed]"
+)
+
+call :checkwmi
+if not defined error (
+echo:
+echo Checking WMI
+call :dk_color %Green% "[Working]"
+goto :at_back
+)
+
+echo:
+echo Registering .dll's and Compiling .mof's, .mfl's
+call :registerobj %nul%
+
+echo:
+echo Checking WMI
+call :checkwmi
+if defined error (
+call :dk_color %Red% "[Not Responding]"
+echo:
+echo Run [Dism RestoreHealth] and [SFC Scannow] options and make sure there are no errors.
+) else (
+call :dk_color %Green% "[Working]"
+)
+
+goto :at_back
+

@@ -1,0 +1,814 @@
+::@include lib/common/preamble.cmdinc
+::@include lib/misc/arg_workaround.cmdinc
+:arg_workaround_end
+
+call :arg_workaround
+
+set re1=
+set re2=
+set "_cmdf=%~f0"
+for %%# in (%*) do (
+if /i "%%#"=="re1" set re1=1
+if /i "%%#"=="re2" set re2=1
+if /i "%%#"=="-qedit" (set re1=1&set re2=1)
+)
+
+:: Re-launch the script with x64 process if it was initiated by x86 process on x64 bit Windows
+:: or with ARM64 process if it was initiated by x86/ARM32 process on ARM64 Windows
+
+if exist %SystemRoot%\Sysnative\cmd.exe if not defined re1 (
+setlocal EnableDelayedExpansion
+start %SystemRoot%\Sysnative\cmd.exe /c ""!_cmdf!" %* re1"
+exit /b
+)
+
+:: Re-launch the script with ARM32 process if it was initiated by x64 process on ARM64 Windows
+
+if exist %SystemRoot%\SysArm32\cmd.exe if %PROCESSOR_ARCHITECTURE%==AMD64 if not defined re2 (
+setlocal EnableDelayedExpansion
+start %SystemRoot%\SysArm32\cmd.exe /c ""!_cmdf!" %* re2"
+exit /b
+)
+
+::========================================================================================================================================
+
+set "blank="
+set "mas=ht%blank%tps%blank%://m%blank%ass%blank%grave.dev/"
+set "github=ht%blank%tps%blank%://github.com/m%blank%assgra%blank%vel/Micro%blank%soft-Acti%blank%vation-Scripts"
+set "selfgit=ht%blank%tps%blank%://git.acti%blank%vated.win/Micr%blank%osoft-Act%blank%ivation-Scripts"
+
+::  Check if Null service is working, it's important for the batch script
+
+sc query Null | find /i "RUNNING"
+if %errorlevel% NEQ 0 (
+echo:
+echo Null service is not running, script may crash...
+echo:
+echo:
+echo Check this webpage for help - %mas%fix_service
+echo:
+echo:
+ping 127.0.0.1 -n 20
+)
+cls
+
+::  Check LF line ending
+
+>nul findstr /v "$" "%_cmdf%" && (
+echo:
+echo Error - Script either has LF line ending issue or an empty line at the end of the script is missing.
+echo:
+echo:
+echo Check this webpage for help - %mas%troubleshoot
+echo:
+echo:
+ping 127.0.0.1 -n 20 >nul
+exit /b
+)
+
+::========================================================================================================================================
+
+cls
+color 07
+title  Troubleshoot %masver%
+
+set _args=
+set _elev=
+set _unattended=0
+
+set _args=%*
+if defined _args set _args=%_args:"=%
+if defined _args set _args=%_args:re1=%
+if defined _args set _args=%_args:re2=%
+if defined _args (
+for %%A in (%_args%) do (
+if /i "%%A"=="-el"                    set _elev=1
+)
+)
+
+set "nul1=1>nul"
+set "nul2=2>nul"
+set "nul6=2^>nul"
+set "nul=>nul 2>&1"
+
+call :dk_setvar
+set "line=_________________________________________________________________________________________________"
+
+::========================================================================================================================================
+
+if %winbuild% EQU 1 (
+%eline%
+echo Failed to detect Windows build number.
+echo:
+setlocal EnableDelayedExpansion
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+goto dk_done
+)
+
+if exist "%Systemdrive%\Users\WDAGUtilityAccount" (
+sc query gcs | find /i "RUNNING" %nul% && (
+%eline%
+echo Windows Sandbox detected.
+echo The script cannot run due to missing licensing components. Aborting...
+echo:
+goto dk_done
+)
+)
+
+if %winbuild% LSS 6001 (
+%nceline%
+echo Unsupported OS version detected [%winbuild%].
+echo MAS only supports Windows Vista/7/8/8.1/10/11 and their Server equivalents.
+if %winbuild% EQU 6000 (
+echo:
+echo Windows Vista RTM is not supported because Powershell cannot be installed.
+echo Upgrade to Windows Vista SP1 or SP2.
+)
+goto dk_done
+)
+
+if %winbuild% LSS 7600 if not exist "%SysPath%\WindowsPowerShell\v1.0\Modules" (
+%nceline%
+if not exist %ps% (
+echo PowerShell is not installed in your system.
+)
+echo Install PowerShell 2.0 using the following URL.
+echo:
+echo https://www.catalog.update.microsoft.com/Search.aspx?q=KB968930
+if %_unattended%==0 start https://www.catalog.update.microsoft.com/Search.aspx?q=KB968930
+goto dk_done
+)
+
+::========================================================================================================================================
+
+::  Fix special character limitations in path name
+
+set "_work=%~dp0"
+if "%_work:~-1%"=="\" set "_work=%_work:~0,-1%"
+
+set "_batp=%_cmdf:'=''%"
+
+set _PSarg="""%_cmdf%""" -el %_args%
+set _PSarg=%_PSarg:'=''%
+
+set "_ttemp=%userprofile%\AppData\Local\Temp"
+
+setlocal EnableDelayedExpansion
+
+::========================================================================================================================================
+
+echo "!_cmdf!" | find /i "!_ttemp!" %nul1% && (
+if /i not "!_work!"=="!_ttemp!" (
+%eline%
+echo The script was launched from the temp folder.
+echo You are most likely running the script directly from the archive file.
+echo:
+echo Extract the archive file and launch the script from the extracted folder.
+goto dk_done
+)
+)
+
+::========================================================================================================================================
+
+::  Elevate script as admin and pass arguments and preventing loop
+
+%nul1% fltmc || (
+if not defined _elev %psc% "start cmd.exe -arg '/c \"!_PSarg!\"' -verb runas" && exit /b
+%eline%
+echo This script needs admin rights.
+echo Right click on this script and select 'Run as administrator'.
+goto dk_done
+)
+
+::========================================================================================================================================
+
+::  Check PowerShell
+
+::pstst $ExecutionContext.SessionState.LanguageMode :pstst
+
+for /f "delims=" %%a in ('%psc% "if ($PSVersionTable.PSEdition -ne 'Core') {$f=[IO.File]::ReadAllText('!_batp!') -split ':pstst';. ([scriptblock]::Create($f[1]))}" %nul6%') do (set tstresult=%%a)
+
+if /i not "%tstresult%"=="FullLanguage" (
+%eline%
+for /f "delims=" %%a in ('%psc% "$ExecutionContext.SessionState.LanguageMode" %nul6%') do (set tstresult2=%%a)
+echo Test 1 - %tstresult%
+echo Test 2 - !tstresult2!
+echo:
+
+REM check LanguageMode
+
+echo: !tstresult2! | findstr /i "ConstrainedLanguage RestrictedLanguage NoLanguage" %nul1% && (
+echo FullLanguage mode not found in PowerShell. Aborting...
+echo If you have applied restrictions on Powershell then undo those changes.
+set fixes=%fixes% %mas%fix_powershell
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%fix_powershell"
+goto dk_done
+)
+
+REM check Powershell core version
+
+cmd /c "%psc% "$PSVersionTable.PSEdition"" | find /i "Core" %nul1% && (
+echo Windows Powershell is needed for MAS but it seems to be replaced with Powershell core. Aborting...
+set fixes=%fixes% %mas%in-place_repair_upgrade
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%in-place_repair_upgrade"
+goto dk_done
+)
+
+REM check for Mal-ware that may cause issues with Powershell
+
+for /r "%ProgramFiles%\" %%f in (secureboot.exe) do if exist "%%f" (
+echo "%%f"
+echo Mal%blank%ware found, PowerShell is not working properly.
+set fixes=%fixes% %mas%remove_mal%w%ware
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%remove_mal%w%ware"
+goto dk_done
+)
+
+REM check if .NET is working properly
+
+if /i "!tstresult2!"=="FullLanguage" (
+cmd /c "%psc% ""try {[System.AppDomain]::CurrentDomain.GetAssemblies(); [System.Math]::Sqrt(144)} catch {Exit 3}""" %nul%
+if !errorlevel!==3 (
+echo Windows Powershell failed to load .NET command. Aborting...
+set fixes=%fixes% %mas%in-place_repair_upgrade
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%in-place_repair_upgrade"
+goto dk_done
+)
+)
+
+REM check antivirus and other errors
+
+echo PowerShell is not working properly. Aborting...
+
+if /i "!tstresult2!"=="FullLanguage" (
+echo:
+echo Your antivirus software might be blocking the script.
+echo:
+sc query sense | find /i "RUNNING" %nul% && (
+echo Installed Antivirus - Microsoft Defender for Endpoint
+)
+cmd /c "%psc% ""$av = Get-WmiObject -Namespace root\SecurityCenter2 -Class AntiVirusProduct; $n = @(); foreach ($i in $av) { $n += $i.displayName }; if ($n) { Write-Host ('Installed Antivirus - ' + ($n -join ', '))}"""
+)
+
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+goto dk_done
+)
+
+::========================================================================================================================================
+
+::  Disable QuickEdit and launch from conhost.exe to avoid Terminal app
+
+if %winbuild% GEQ 17763 (
+set terminal=1
+) else (
+set terminal=
+)
+
+::  Check if script is running in Terminal app
+
+if defined terminal (
+set lines=0
+for /f "skip=3 tokens=* delims=" %%A in ('mode con') do if "!lines!"=="0" (
+for %%B in (%%A) do set lines=%%B
+)
+if !lines! GEQ 100 set terminal=
+)
+
+if %_unattended%==1 goto :skipQE
+for %%# in (%_args%) do (if /i "%%#"=="-qedit" goto :skipQE)
+
+::  Relaunch to disable QuickEdit in the current session and use conhost.exe instead of the Terminal app
+::  This code disables QuickEdit for the current cmd.exe session without making permanent registry changes
+::  It is included because clicking on the script window can pause execution, causing confusion that the script has stopped due to an error
+
+set resetQE=1
+reg query HKCU\Console /v QuickEdit %nul2% | find /i "0x0" %nul1% && set resetQE=0
+reg add HKCU\Console /v QuickEdit /t REG_DWORD /d 0 /f %nul1%
+
+if defined terminal (
+start conhost.exe "!_cmdf!" %_args% -qedit
+start reg add HKCU\Console /v QuickEdit /t REG_DWORD /d %resetQE% /f %nul1%
+exit /b
+) else if %resetQE% EQU 1 (
+start cmd.exe /c ""!_cmdf!" %_args% -qedit"
+start reg add HKCU\Console /v QuickEdit /t REG_DWORD /d %resetQE% /f %nul1%
+exit /b
+)
+
+:skipQE
+
+::========================================================================================================================================
+
+::  Check for updates
+
+set -=
+set old=
+set pingp=
+set upver=%masver:.=%
+
+for %%A in (
+activ%-%ated.win
+mass%-%grave.dev
+) do if not defined pingp (
+for /f "delims=[] tokens=2" %%B in ('ping -n 1 %%A') do (
+if not "%%B"=="" (set old=1& set pingp=1)
+for /f "delims=[] tokens=2" %%C in ('ping -n 1 updatecheck%upver%.%%A') do (
+if not "%%C"=="" set old=
+)
+)
+)
+
+if defined old (
+echo ________________________________________________
+%eline%
+echo Your version of MAS [%masver%] is outdated.
+echo ________________________________________________
+echo:
+if not %_unattended%==1 (
+echo [1] Get Latest MAS
+echo [0] Continue Anyway
+echo:
+call :dk_color %_Green% "Choose a menu option using your keyboard [1,0] :"
+choice /C:10 /N
+if !errorlevel!==2 rem
+if !errorlevel!==1 (start %selfgit% & start %github% & start %mas% & exit /b)
+)
+)
+
+::========================================================================================================================================
+
+setlocal DisableDelayedExpansion
+
+::  Check desktop location
+
+set desktop=
+for /f "skip=2 tokens=2*" %%a in ('reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" /v Desktop') do call set "desktop=%%b"
+if not defined desktop for /f "delims=" %%a in ('%psc% "& {write-host $([Environment]::GetFolderPath('Desktop'))}"') do call set "desktop=%%a"
+
+if not defined desktop (
+%eline%
+echo Unable to detect Desktop location, aborting...
+goto dk_done
+)
+
+setlocal EnableDelayedExpansion
+
+::========================================================================================================================================
+
+:at_menu
+
+cls
+color 07
+title  Troubleshoot %masver%
+if not defined terminal mode 77, 30
+
+echo:
+echo:
+echo:
+echo:
+echo:       _______________________________________________________________
+echo:                                                   
+call :dk_color2 %_White% "             [1] " %_Green% "Help"
+echo:             ___________________________________________________
+echo:                                                                      
+echo:             [2] Dism RestoreHealth
+echo:             [3] SFC Scannow
+echo:                                                                      
+echo:             [4] Fix WMI
+echo:             [5] Fix Licensing
+echo:             [6] Fix WPA Registry
+echo:             ___________________________________________________
+echo:
+echo:             [0] %_exitmsg%
+echo:       _______________________________________________________________
+echo:          
+call :dk_color2 %_White% "            " %_Green% "Choose a menu option using your keyboard :"
+choice /C:1234560 /N
+set _erl=%errorlevel%
+
+if %_erl%==7 exit /b
+if %_erl%==6 start %mas%fix-wpa-registry &goto at_menu
+if %_erl%==5 goto:retokens
+if %_erl%==4 goto:fixwmi
+if %_erl%==3 goto:sfcscan
+if %_erl%==2 goto:dism_rest
+if %_erl%==1 (start %selfgit% & start %github% & start %mas%troubleshoot & goto at_menu)
+goto :at_menu
+
+::========================================================================================================================================
+
+::@include lib/misc/dism_rest.cmdinc
+::@include lib/misc/sfcscan.cmdinc
+::@include lib/misc/retokens.cmdinc
+::@include lib/misc/cleanlicensing.cmdinc
+::@include lib/misc/rebuildspptok.cmdinc
+::@include lib/misc/repairoffice.cmdinc
+::@include lib/misc/repairend.cmdinc
+::@include lib/misc/getc2rrepair.cmdinc
+::@include lib/misc/getc2r16repair.cmdinc
+::@include lib/misc/getrepairsetup.cmdinc
+::@include lib/misc/fixwmi.cmdinc
+::@include lib/misc/registerobj.cmdinc
+::@include lib/misc/checkwmi.cmdinc
+::@include lib/troubleshoot/at_back.cmdinc
+:compresslog
+
+::  https://stackoverflow.com/a/46268232
+
+set "ddf="%SystemRoot%\Temp\%Random%%Random%%Random%%Random%""
+%nul% del /q /f %ddf%
+echo/.New Cabinet>%ddf%
+echo/.set Cabinet=ON>>%ddf%
+echo/.set CabinetFileCountThreshold=0;>>%ddf%
+echo/.set Compress=ON>>%ddf%
+echo/.set CompressionType=LZX>>%ddf%
+echo/.set CompressionLevel=7;>>%ddf%
+echo/.set CompressionMemory=21;>>%ddf%
+echo/.set FolderFileCountThreshold=0;>>%ddf%
+echo/.set FolderSizeThreshold=0;>>%ddf%
+echo/.set GenerateInf=OFF>>%ddf%
+echo/.set InfFileName=nul>>%ddf%
+echo/.set MaxCabinetSize=0;>>%ddf%
+echo/.set MaxDiskFileCount=0;>>%ddf%
+echo/.set MaxDiskSize=0;>>%ddf%
+echo/.set MaxErrors=1;>>%ddf%
+echo/.set RptFileName=nul>>%ddf%
+echo/.set UniqueFiles=ON>>%ddf%
+for /f "tokens=* delims=" %%D in ('dir /a:-D/b/s "%SystemRoot%\logs\%1"') do (
+ echo/"%%~fD"  /inf=no;>>%ddf%
+)
+makecab /F %ddf% /D DiskDirectory1="" /D CabinetNameTemplate="!desktop!\%2_%_time%.cab"
+del /q /f %ddf%
+exit /b
+
+::========================================================================================================================================
+
+:checkperms
+
+::  This code checks if SPP has permission access to tokens folder and required registry keys. Incorrect permissions are often set by gaming spoofers.
+
+set permerror=
+if not exist "%tokenstore%\" set "permerror=Error Found In Token Folder"
+
+if defined ps32onArm exit /b
+
+for %%# in (
+"%tokenstore%+FullControl"
+"HKLM:\SYSTEM\WPA+QueryValues, EnumerateSubKeys, WriteKey"
+"HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform+SetValue"
+) do for /f "tokens=1,2 delims=+" %%A in (%%#) do if not defined permerror (
+%psc% "$acl = (Get-Acl '%%A' | fl | Out-String); if (-not ($acl -match 'NT SERVICE\\sppsvc Allow  %%B') -or ($acl -match 'NT SERVICE\\sppsvc Deny')) {Exit 2}" %nul%
+if !errorlevel!==2 (
+if "%%A"=="%tokenstore%" (
+set "permerror=Error Found In Token Folder"
+) else (
+set "permerror=Error Found In SPP Registries"
+)
+)
+)
+
+REM  https://learn.microsoft.com/en-us/office/troubleshoot/activation/license-issue-when-start-office-application
+
+if not defined permerror (
+reg query "HKU\S-1-5-20\Software\Microsoft\Windows NT\CurrentVersion" %nul% && (
+set "pol=HKU\S-1-5-20\Software\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform\Policies"
+reg query "!pol!" %nul% || reg add "!pol!" %nul%
+%psc% "$netServ = (New-Object Security.Principal.SecurityIdentifier('S-1-5-20')).Translate([Security.Principal.NTAccount]).Value; $aclString = Get-Acl 'Registry::!pol!' | Format-List | Out-String; if (-not ($aclString.Contains($netServ + ' Allow  FullControl') -or $aclString.Contains('NT SERVICE\sppsvc Allow  FullControl')) -or ($aclString.Contains('Deny'))) {Exit 3}" %nul%
+if !errorlevel!==3 set "permerror=Error Found In S-1-5-20 SPP"
+)
+)
+exit /b
+
+::========================================================================================================================================
+
+::  Clean existing K-M-S cache from the registry
+
+:_taskclear-cache
+
+set w=
+for %%# in (SppE%w%xtComObj.exe sppsvc.exe SLsvc.exe) do (
+reg delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Ima%w%ge File Execu%w%tion Options\%%#" /f %nul%
+)
+
+set "OPPk=SOFTWARE\Microsoft\OfficeSoftwareProtectionPlatform"
+
+if %winbuild% LSS 7600 (
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SL" %nul% && (
+set "SPPk=SOFTWARE\Microsoft\Windows NT\CurrentVersion\SL"
+)
+)
+if not defined SPPk (
+set "SPPk=SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform"
+)
+
+set "slp=SoftwareLicensingProduct"
+set "ospp=OfficeSoftwareProtectionProduct"
+
+set "_wApp=55c92734-d682-4d71-983e-d6ec3f16059f"
+set "_oApp=0ff1ce15-a989-479d-af46-f275c6370663"
+set "_oA14=59a52881-a989-479d-af46-f275c6370663"
+
+%nul% reg delete "HKLM\%SPPk%" /f /v KeyManagementServiceName
+%nul% reg delete "HKLM\%SPPk%" /f /v KeyManagementServiceName /reg:32
+%nul% reg delete "HKLM\%SPPk%" /f /v KeyManagementServicePort
+%nul% reg delete "HKLM\%SPPk%" /f /v KeyManagementServicePort /reg:32
+%nul% reg delete "HKLM\%SPPk%" /f /v DisableDnsPublishing
+%nul% reg delete "HKLM\%SPPk%" /f /v DisableKeyManagementServiceHostCaching
+%nul% reg delete "HKLM\%SPPk%\%_wApp%" /f
+if %winbuild% GEQ 9200 (
+%nul% reg delete "HKLM\%SPPk%\%_oApp%" /f
+%nul% reg delete "HKLM\%SPPk%\%_oApp%" /f /reg:32
+)
+if %winbuild% GEQ 9600 (
+%nul% reg delete "HKU\S-1-5-20\%SPPk%\%_wApp%" /f
+%nul% reg delete "HKU\S-1-5-20\%SPPk%\%_oApp%" /f
+)
+%nul% reg delete "HKLM\%OPPk%" /f /v KeyManagementServiceName
+%nul% reg delete "HKLM\%OPPk%" /f /v KeyManagementServicePort
+%nul% reg delete "HKLM\%OPPk%" /f /v DisableDnsPublishing
+%nul% reg delete "HKLM\%OPPk%" /f /v DisableKeyManagementServiceHostCaching
+%nul% reg delete "HKLM\%OPPk%\%_oA14%" /f
+%nul% reg delete "HKLM\%OPPk%\%_oApp%" /f
+
+exit /b
+
+::========================================================================================================================================
+
+::  Fix SPP related registry and folder permissions
+
+:fixsppperms:
+# Fix perms for Token Folder
+
+if ($env:permerror -eq 'Error Found In Token Folder') {
+    New-Item -Path $env:tokenstore -ItemType Directory -Force
+    $sddl = 'O:BAG:BAD:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICIIO;GR;;;BU)(A;;FR;;;BU)(A;OICI;FA;;;S-1-5-80-123231216-2592883651-3715271367-3753151631-4175906628)'
+    $AclObject = New-Object System.Security.AccessControl.DirectorySecurity
+    $AclObject.SetSecurityDescriptorSddlForm($sddl)
+    Set-Acl -Path $env:tokenstore -AclObject $AclObject
+    exit
+}
+
+# Fix perms for SPP registries
+
+if ($env:permerror -eq 'Error Found In SPP Registries') {
+    $acl = Get-Acl 'HKLM:\SYSTEM\WPA'
+    $rule = New-Object System.Security.AccessControl.RegistryAccessRule ('NT Service\sppsvc', 'QueryValues, EnumerateSubKeys, WriteKey', 'ContainerInherit, ObjectInherit', 'None', 'Allow')
+    $acl.ResetAccessRule($rule)
+    $acl.SetAccessRule($rule)
+    Set-Acl -Path 'HKLM:\SYSTEM\WPA' -AclObject $acl
+	
+    $acl = Get-Acl 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform'
+    $rule = New-Object System.Security.AccessControl.RegistryAccessRule ('NT Service\sppsvc', 'SetValue', 'ContainerInherit, ObjectInherit', 'None', 'Allow')
+    $acl.ResetAccessRule($rule)
+    $acl.SetAccessRule($rule)
+    Set-Acl -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform' -AclObject $acl
+    exit
+}
+
+# Fix perms for SPP in HKU\S-1-5-20
+# https://learn.microsoft.com/en-us/office/troubleshoot/activation/license-issue-when-start-office-application
+
+if ($env:permerror -ne 'Error Found In S-1-5-20 SPP') {
+    exit
+}
+if (-not (Test-Path 'Registry::HKU\S-1-5-20\Software\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform')) {
+    exit
+}
+
+# https://stackoverflow.com/a/35843420
+
+function Take-Permissions {
+    param($rootKey, $key, [System.Security.Principal.SecurityIdentifier]$sid = 'S-1-5-32-545', $recurse = $true)
+    
+    switch -regex ($rootKey) {
+        'HKCU|HKEY_CURRENT_USER' { $rootKey = 'CurrentUser' }
+        'HKLM|HKEY_LOCAL_MACHINE' { $rootKey = 'LocalMachine' }
+        'HKCR|HKEY_CLASSES_ROOT' { $rootKey = 'ClassesRoot' }
+        'HKCC|HKEY_CURRENT_CONFIG' { $rootKey = 'CurrentConfig' }
+        'HKU|HKEY_USERS' { $rootKey = 'Users' }
+    }
+
+    ### Step 1 - escalate current process's privilege
+    # get SeTakeOwnership, SeBackup and SeRestore privileges before executes next lines, script needs Admin privilege
+    $AssemblyBuilder = [AppDomain]::CurrentDomain.DefineDynamicAssembly(4, 1)
+    $ModuleBuilder = $AssemblyBuilder.DefineDynamicModule(2, $False)
+    $TypeBuilder = $ModuleBuilder.DefineType(0)
+    $TypeBuilder.DefinePInvokeMethod('RtlAdjustPrivilege', 'ntdll.dll', 'Public, Static', 1, [int], @([int], [bool], [bool], [bool].MakeByRefType()), 1, 3) | Out-Null
+    9, 17, 18 | ForEach-Object { $TypeBuilder.CreateType()::RtlAdjustPrivilege($_, $true, $false, [ref]$false) | Out-Null }
+
+    function Take-KeyPermissions {
+        param($rootKey, $key, $sid, $recurse, $recurseLevel = 0)
+
+        ### Step 2 - get ownerships of key - it works only for current key
+        $regKey = [Microsoft.Win32.Registry]::$rootKey.OpenSubKey($key, 'ReadWriteSubTree', 'TakeOwnership')
+        $acl = New-Object System.Security.AccessControl.RegistrySecurity
+        $acl.SetOwner($sid)
+        $regKey.SetAccessControl($acl)
+
+        ### Step 3 - enable inheritance of permissions (not ownership) for current key from parent
+        $acl.SetAccessRuleProtection($false, $false)
+        $regKey.SetAccessControl($acl)
+
+        ### Step 4 - only for top-level key, change permissions for current key and propagate it for subkeys
+        # to enable propagations for subkeys, it needs to execute Steps 2-3 for each subkey (Step 5)
+        if ($recurseLevel -eq 0) {
+            $regKey = $regKey.OpenSubKey('', 'ReadWriteSubTree', 'ChangePermissions')
+            $rule = New-Object System.Security.AccessControl.RegistryAccessRule($sid, 'FullControl', 'ContainerInherit', 'None', 'Allow')
+            $acl.ResetAccessRule($rule)
+            $regKey.SetAccessControl($acl)
+        }
+
+        ### Step 5 - recursively repeat steps 2-5 for subkeys
+        if ($recurse) {
+            foreach ($subKey in $regKey.OpenSubKey('').GetSubKeyNames()) {
+                Take-KeyPermissions $rootKey ($key + '\' + $subKey) $sid $recurse ($recurseLevel + 1)
+            }
+        }
+    }
+
+    Take-KeyPermissions $rootKey $key $sid $recurse
+}
+
+Take-Permissions "Users" "S-1-5-20\Software\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" "S-1-5-20"
+:fixsppperms:
+
+::========================================================================================================================================
+
+::  Install License files using Powershell/WMI instead of slmgr.vbs
+
+:xrm:
+function InstallLicenseFile($Lsc) {
+    try {
+        $null = $sls.InstallLicense([IO.File]::ReadAllText($Lsc))
+    } catch {
+        $host.SetShouldExit($_.Exception.HResult)
+    }
+}
+function InstallLicenseArr($Str) {
+    $a = $Str -split ';'
+    ForEach ($x in $a) {InstallLicenseFile "$x"}
+}
+function InstallLicenseDir($Loc) {
+	Get-ChildItem $Loc -Recurse -Filter *.xrm-ms | ForEach-Object {InstallLicenseFile $_.FullName}
+}
+function ReinstallLicenses() {
+	$Paths = @("$env:SysPath\oem", "$env:SysPath\licensing", "$env:SysPath\spp\tokens")
+	foreach ($Path in $Paths) {
+    if (Test-Path $Path) { InstallLicenseDir "$Path" }
+	}
+}
+:xrm:
+
+::========================================================================================================================================
+
+::@include lib/misc/scandat.cmdinc
+::@include lib/misc/scandatospp.cmdinc
+:regownstart
+
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':regown\:.*';. ([scriptblock]::Create($f[1]));"
+exit /b
+
+::  Below code takes ownership of a volatile registry key and deletes it
+::  HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ClipSVC\Volatile\PersistedSystemState
+
+:regown:
+$AssemblyBuilder = [AppDomain]::CurrentDomain.DefineDynamicAssembly(4, 1)
+$ModuleBuilder = $AssemblyBuilder.DefineDynamicModule(2, $False)
+$TypeBuilder = $ModuleBuilder.DefineType(0)
+
+$TypeBuilder.DefinePInvokeMethod('RtlAdjustPrivilege', 'ntdll.dll', 'Public, Static', 1, [int], @([int], [bool], [bool], [bool].MakeByRefType()), 1, 3) | Out-Null
+$TypeBuilder.CreateType()::RtlAdjustPrivilege(9, $true, $false, [ref]$false) | Out-Null
+
+$SID = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-544')
+$IDN = ($SID.Translate([System.Security.Principal.NTAccount])).Value
+$Admin = New-Object System.Security.Principal.NTAccount($IDN)
+
+$path = 'SOFTWARE\Microsoft\Windows NT\CurrentVersion\ClipSVC\Volatile\PersistedSystemState'
+$key = [Microsoft.Win32.RegistryKey]::OpenBaseKey('LocalMachine', 'Registry64').OpenSubKey($path, 'ReadWriteSubTree', 'takeownership')
+
+$acl = $key.GetAccessControl()
+$acl.SetOwner($Admin)
+$key.SetAccessControl($acl)
+
+$rule = New-Object System.Security.AccessControl.RegistryAccessRule($Admin,"FullControl","Allow")
+$acl.SetAccessRule($rule)
+$key.SetAccessControl($acl)
+:regown:
+
+::========================================================================================================================================
+
+::  This code runs to undo below registry key KMS38 protection
+::  HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform\55c92734-d682-4d71-983e-d6ec3f16059f
+
+::  This option is not used in KMS38 anymore, it's here only to remove previous versions protection.
+
+:regdel:
+param (
+    [switch]$protect
+)
+
+$SID = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-544')
+$Admin = ($SID.Translate([System.Security.Principal.NTAccount])).Value
+
+if($protect) {
+$ruleArgs = @("$Admin", "Delete, SetValue", "ContainerInherit", "None", "Deny")
+} else {
+$ruleArgs = @("$Admin", "FullControl", "Allow")
+}
+
+$path = 'SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform\55c92734-d682-4d71-983e-d6ec3f16059f'
+$key = [Microsoft.Win32.RegistryKey]::OpenBaseKey('LocalMachine', 'Registry64').OpenSubKey($path, 'ReadWriteSubTree', 'ChangePermissions')
+$acl = $key.GetAccessControl()
+
+$rule = [System.Security.AccessControl.RegistryAccessRule]::new.Invoke($ruleArgs)
+$acl.ResetAccessRule($rule)
+$key.SetAccessControl($acl)
+:regdel:
+
+::========================================================================================================================================
+
+::@include lib/common/dk_color.cmdinc
+::@include lib/common/dk_color2.cmdinc
+:dk_done
+
+echo:
+if %_unattended%==1 timeout /t 2 & exit /b
+
+if defined fixes (
+call :dk_color %White% "Follow ALL the ABOVE blue lines.   "
+call :dk_color2 %Blue% "Press [1] to Open Support Webpage " %Gray% " Press [0] to Go Back"
+choice /C:10 /N
+if !errorlevel!==2 exit /b
+if !errorlevel!==1 (start %selfgit% & start %github% & for %%# in (%fixes%) do (start %%#))
+)
+
+if defined terminal (
+call :dk_color %_Yellow% "Press [0] key to %_exitmsg%..."
+choice /c 0 /n
+) else (
+call :dk_color %_Yellow% "Press any key to %_exitmsg%..."
+pause %nul1%
+)
+
+exit /b
+
+::========================================================================================================================================
+
+::  Set variables
+
+:dk_setvar
+
+set ps=%SysPath%\WindowsPowerShell\v1.0\powershell.exe
+set psc=%ps% -nop -c
+set winbuild=1
+for /f "tokens=2 delims=[]" %%G in ('ver') do for /f "tokens=2,3,4 delims=. " %%H in ("%%~G") do set "winbuild=%%J"
+
+set _slexe=sppsvc.exe& set _slser=sppsvc
+if %winbuild% LEQ 6300 (set _slexe=SLsvc.exe& set _slser=SLsvc)
+if %winbuild% LSS 7600 if exist "%SysPath%\SLsvc.exe" (set _slexe=SLsvc.exe& set _slser=SLsvc)
+if %_slexe%==SLsvc.exe set _vis=1
+
+set _NCS=1
+if %winbuild% LSS 10586 set _NCS=0
+if %winbuild% GEQ 10586 reg query "HKCU\Console" /v ForceV2 %nul2% | find /i "0x0" %nul1% && (set _NCS=0)
+
+echo "%PROCESSOR_ARCHITECTURE% %PROCESSOR_ARCHITEW6432%" | find /i "ARM64" %nul1% && (if %winbuild% LSS 21277 set ps32onArm=1)
+
+if %_NCS% EQU 1 (
+for /F %%a in ('echo prompt $E ^| cmd') do set "esc=%%a"
+set     "Red="41;97m""
+set    "Gray="100;97m""
+set   "Green="42;97m""
+set    "Blue="44;97m""
+set   "White="107;91m""
+set    "_Red="40;91m""
+set  "_White="40;37m""
+set  "_Green="40;92m""
+set "_Yellow="40;93m""
+) else (
+set     "Red="Red" "white""
+set    "Gray="Darkgray" "white""
+set   "Green="DarkGreen" "white""
+set    "Blue="Blue" "white""
+set   "White="White" "Red""
+set    "_Red="Black" "Red""
+set  "_White="Black" "Gray""
+set  "_Green="Black" "Green""
+set "_Yellow="Black" "Yellow""
+)
+
+set "nceline=echo: &echo ==== ERROR ==== &echo:"
+set "eline=echo: &call :dk_color %Red% "==== ERROR ====" &echo:"
+if %~z0 GEQ 200000 (
+set "_exitmsg=Go back"
+set "_fixmsg=Go back to Main Menu, select Troubleshoot and run Fix Licensing option."
+) else (
+set "_exitmsg=Exit"
+set "_fixmsg=In MAS folder, run Troubleshoot script and select Fix Licensing option."
+)
+exit /b
+
+::========================================================================================================================================
+:: Leave empty line below

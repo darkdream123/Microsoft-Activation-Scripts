@@ -1,0 +1,136 @@
+:oe_changeupdchnl
+
+title  Change Office update channel %masver%
+call :ch_getinfo
+
+cls
+if not defined terminal (
+mode 98, 33
+)
+
+call :oe_chkinternet
+if not defined _int (
+goto :oe_goback
+)
+
+if %winbuild% LSS 10240 (
+echo %_oIds% | findstr "2019 2021 2024" %nul% && (
+%eline%
+echo Installed Office editions: %_oIds%
+echo Unsupported Office edition is installed on your Windows build version %winbuild%.
+goto :oe_goback
+)
+if defined ltscfound (
+%eline%
+echo Installed Office update channel: %ltsc19%%ltsc21%%ltsc24%
+echo Unsupported Office update channel is installed on your Windows build version %winbuild%.
+goto :oe_goback
+)
+)
+
+::===============
+
+set inpt=
+set counter=0
+set verified=0
+set targetFFN=
+set bypassFFN=
+set targetchannel=
+
+%line%
+echo:
+call :dk_color %Gray% "Installed update channel: %_AudienceData%, %_version%, Client: %_clversion%"
+call :dk_color %Gray% "Installed Office editions: %_oIds%"
+%line%
+echo:
+
+for %%# in (
+"5440fd1f-7ecb-4221-8110-145efaa6372f_Beta    / Insider Fast    -   Insiders::DevMain  -"
+"64256afe-f5d9-4f86-8936-8840a6a4f5be_Current / Monthly Preview -   Insiders::CC       -"
+"492350f6-3a01-4f97-b9c0-c7c6ddf67d60_Current / Monthly         - Production::CC       -"
+"55336b82-a18d-4dd6-b5f6-9e5095c314a6_Monthly Enterprise        - Production::MEC      -"
+"7ffbc6bf-bc32-4f92-8982-f9dd17fd3114_Semi Annual Enterprise    - Production::DC       -"
+"ea4a4090-de26-49d7-93c1-91bff9e53fc3_DevMain Channel           -    Dogfood::DevMain  -"
+"b61285dd-d9f7-41f2-9757-8f61cba4e9c8_Microsoft Elite           -  Microsoft::DevMain  -"
+"f2e724c1-748f-4b47-8fb8-8e0d210e9208_Perpetual2019 VL          - Production::LTSC     -"
+"1d2d2ea6-1680-4c56-ac58-a441c8c24ff9_Microsoft2019 VL          -  Microsoft::LTSC     -"
+"5030841d-c919-4594-8d2d-84ae4f96e58e_Perpetual2021 VL          - Production::LTSC2021 -"
+"86752282-5841-4120-ac80-db03ae6b5fdb_Microsoft2021 VL          -  Microsoft::LTSC2021 -"
+"7983bac0-e531-40cf-be00-fd24fe66619c_Perpetual2024 VL          - Production::LTSC2024 -"
+"c02d8fe6-5242-4da8-972f-82ee55e00671_Microsoft2024 VL          -  Microsoft::LTSC2024 -"
+) do (
+for /f "tokens=1-2 delims=_" %%A in ("%%~#") do (
+set bypass=
+set supported=
+if %winbuild% LSS 10240 (echo %%B | findstr /i "LTSC DevMain" %nul% || set supported=1) else (set supported=1)
+if %winbuild% GEQ 10240 (
+if defined ltsc19 echo %%B | find /i "2019 VL" %nul% || set bypass=1
+if defined ltsc21 echo %%B | find /i "2021 VL" %nul% || set bypass=1
+if defined ltsc24 echo %%B | find /i "2024 VL" %nul% || set bypass=1
+if not defined ltscfound echo %%B | find /i "LTSC" %nul% && set bypass=1
+)
+if defined supported (
+set /a counter+=1
+if !counter! LSS 10 (
+if defined bypass (echo [!counter!]  %%B  Unofficial change method will be used) else (echo [!counter!]  %%B)
+) else (
+if defined bypass (echo [!counter!] %%B  Unofficial change method will be used) else (echo [!counter!] %%B)
+)
+set targetFFN!counter!=%%A
+set targetchannel!counter!=%%B
+if defined bypass set bypassFFN=!bypassFFN!%%A
+)
+)
+)
+
+%line%
+echo:
+echo [R]  Learn about update channels
+echo [0]  Go back
+echo:
+call :dk_color %_Green% "Enter an option number using your keyboard and press Enter to confirm:"
+set /p inpt=
+if "%inpt%"=="" goto :oe_changeupdchnl
+if "%inpt%"=="0" goto :oemenu
+if /i "%inpt%"=="R" start https://learn.microsoft.com/en-us/microsoft-365-apps/updates/overview-update-channels & goto :oe_changeupdchnl
+for /l %%i in (1,1,%counter%) do (if "%inpt%"=="%%i" set verified=1)
+set targetFFN=!targetFFN%inpt%!
+set targetchannel=!targetchannel%inpt%!
+if %verified%==0 goto :oe_changeupdchnl
+
+::=======================
+
+cls
+if not defined terminal mode 105, 32
+
+::  Get build number for the target FFN, using build number with OfficeC2RClient.exe command to trigger updates provides accurate results
+
+set build=
+for /f "delims=" %%a in ('%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':getbuild\:.*';. ([scriptblock]::Create($f[1]))" %nul6%') do (set build=%%a)
+echo "%build%" | find /i "16." %nul% || set build=
+
+echo:
+for /f "tokens=1 delims=-" %%A in ("%targetchannel%") do (echo Target update channel: %%A)
+echo Target build number: %build%
+echo: %bypassFFN% | find /i "%targetFFN%" %nul% && goto :oe_changeunoff
+
+call :oe_cleanupreg
+
+if not defined build (
+if %winbuild% GEQ 9200 call :dk_color %Gray% "Failed to detect build number for the target FFN."
+set "updcommand="%_c2rCexe%" /update user"
+) else (
+set "updcommand="%_c2rCexe%" /update user updatetoversion=%build%"
+)
+echo Running the below command to trigger updates...
+echo:
+echo %updcommand%
+%updcommand%
+echo:
+echo Check this webpage for help - %mas%troubleshoot
+goto :oe_goback
+
+::=======================
+
+::  Unofficial method to change channel
+

@@ -1,0 +1,57 @@
+:ks_uninstall
+
+cls
+if not defined terminal mode 91, 30
+title  Online %KS% Complete Uninstall %masver%
+
+set "uline=__________________________________________________________________________________________"
+
+set "_C16R="
+for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\ClickToRun /v InstallPath" 2^>nul') do if exist "%%b\root\Licenses16\ProPlus*.xrm-ms" set "_C16R=1"
+for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\ClickToRun /v InstallPath /reg:32" 2^>nul') do if exist "%%b\root\Licenses16\ProPlus*.xrm-ms" set "_C16R=1"
+if %winbuild% GEQ 9200 if defined _C16R (
+echo:
+call :dk_color %Gray% "Notice-"
+echo:
+echo To make sure Office programs do not show a non-genuine banner,
+echo please run the activation option once, and don't uninstall afterward.
+echo %uline%
+)
+
+echo:
+set error_=
+call :_taskclear-cache
+call :ks_clearstuff
+
+:: check KMS38 lock
+
+%nul% reg query "HKLM\%SPPk%\%_wApp%" && (
+set error_=9
+echo Failed to completely clear %KS% Cache.
+reg query "HKLM\%SPPk%\%_wApp%" /s %nul2% | findstr /i "127.0.0.2" %nul1% && echo KMS38 activation is locked.
+call :dk_color %Blue% "%_fixmsg%"
+echo:
+) || (
+echo Cleared %KS% Cache successfully.
+)
+
+if defined error_ (
+if "%error_%"=="1" (
+echo %uline%
+%eline%
+echo Try Again / Restart the System
+echo %uline%
+)
+) else (
+echo %uline%
+echo:
+call :dk_color %Green% "Online %KS% has been successfully uninstalled."
+echo:
+call :dk_color %Gray% "If you want to reset the activation status,"
+call :dk_color %Blue% "%_fixmsg%"
+echo:
+echo %uline%
+)
+
+goto :dk_done
+

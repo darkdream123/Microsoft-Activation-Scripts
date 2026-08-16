@@ -1,0 +1,13 @@
+:oe_tempcleanup
+
+del %SystemRoot%\Temp\%o_randguid%\SingleApps_Volume.txt %nul%
+del %SystemRoot%\Temp\%o_randguid%\SingleApps_Retail.txt %nul%
+del %SystemRoot%\Temp\%o_randguid%\Suites_Volume.txt %nul%
+del %SystemRoot%\Temp\%o_randguid%\Suites_Retail.txt %nul%
+del %SystemRoot%\Temp\%o_randguid%\getAppIds.txt %nul%
+exit /b
+
+::========================================================================================================================================
+
+::  Fetch required info
+

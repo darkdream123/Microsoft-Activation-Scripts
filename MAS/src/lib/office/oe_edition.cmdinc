@@ -1,0 +1,44 @@
+:oe_edition
+
+cls
+call :oe_chkinternet
+if not defined _int (
+goto :oe_goback
+)
+
+cls
+if not defined terminal mode 76, 25
+if %change%==1 (
+title  Change all editions %masver%
+) else (
+title  Add edition %masver%
+)
+
+echo:
+echo:
+echo:
+echo:
+echo                 O365/Mondo editions have the latest features.     
+echo         ____________________________________________________________
+echo:
+echo                 [1] Office Suites     - Retail
+echo                 [2] Office Suites     - Volume
+echo                 [3] Office SingleApps - Retail
+echo                 [4] Office SingleApps - Volume
+echo                 ____________________________________________
+echo:
+echo                 [0] Go Back
+echo         ____________________________________________________________
+echo: 
+call :dk_color2 %_White% "            " %_Green% "Choose a menu option using your keyboard [1,2,3,4,0]"
+choice /C:12340 /N
+set _el=!errorlevel!
+if !_el!==5  goto :oemenu
+if !_el!==4  set list=SingleApps_Volume&goto :oe_editionchangepre
+if !_el!==3  set list=SingleApps_Retail&goto :oe_editionchangepre
+if !_el!==2  set list=Suites_Volume&goto :oe_editionchangepre
+if !_el!==1  set list=Suites_Retail&goto :oe_editionchangepre
+goto :oe_edition
+
+::========================================================================================================================================
+

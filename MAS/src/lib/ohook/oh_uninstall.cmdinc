@@ -1,0 +1,135 @@
+:oh_uninstall
+
+cls
+if not defined terminal mode 145, 32
+title  Uninstall Ohook Activation %masver%
+
+set _present=
+set _unerror=
+call :oh_reset
+call :oh_getpath
+
+echo:
+echo Uninstalling Ohook activation...
+echo:
+
+if defined o16c2r_reg (for /f "skip=2 tokens=2*" %%a in ('"reg query %o16c2r_reg% /v InstallPath" %nul6%') do (set "_16CHook=%%b\root\vfs"))
+if defined o15c2r_reg (for /f "skip=2 tokens=2*" %%a in ('"reg query %o15c2r_reg% /v InstallPath" %nul6%') do (set "_15CHook=%%b\root\vfs"))
+if defined o16msi_reg (for /f "skip=2 tokens=2*" %%a in ('"reg query %o16msi_reg%\Common\InstallRoot /v Path" %nul6%') do (set "_16MHook=%%b"))
+if defined o15msi_reg (for /f "skip=2 tokens=2*" %%a in ('"reg query %o15msi_reg%\Common\InstallRoot /v Path" %nul6%') do (set "_15MHook=%%b"))
+if defined o14msi_reg (for /f "skip=2 tokens=2*" %%a in ('"reg query %o14msi_reg%\Common\InstallRoot /v Path" %nul6%') do (set "_14MHook=%%b"))
+
+if defined _16CHook (if exist "%_16CHook%\System\sppc*dll"    (set _present=1& del /s /f /q "%_16CHook%\System\sppc*dll"    & if exist "%_16CHook%\System\sppc*dll"    set _unerror=1))
+if defined _16CHook (if exist "%_16CHook%\SystemX86\sppc*dll" (set _present=1& del /s /f /q "%_16CHook%\SystemX86\sppc*dll" & if exist "%_16CHook%\SystemX86\sppc*dll" set _unerror=1))
+if defined _15CHook (if exist "%_15CHook%\System\sppc*dll"    (set _present=1& del /s /f /q "%_15CHook%\System\sppc*dll"    & if exist "%_15CHook%\System\sppc*dll"    set _unerror=1))
+if defined _15CHook (if exist "%_15CHook%\SystemX86\sppc*dll" (set _present=1& del /s /f /q "%_15CHook%\SystemX86\sppc*dll" & if exist "%_15CHook%\SystemX86\sppc*dll" set _unerror=1))
+if defined _16MHook (if exist "%_16MHook%sppc*dll"            (set _present=1& del /s /f /q "%_16MHook%sppc*dll"            & if exist "%_16MHook%sppc*dll"            set _unerror=1))
+if defined _15MHook (if exist "%_15MHook%sppc*dll"            (set _present=1& del /s /f /q "%_15MHook%sppc*dll"            & if exist "%_15MHook%sppc*dll"            set _unerror=1))
+if defined _14MHook (if exist "%_14MHook%sppc*dll"            (set _present=1& del /s /f /q "%_14MHook%sppc*dll"            & if exist "%_14MHook%sppc*dll"            set _unerror=1))
+
+for %%# in (14 15 16) do (
+for %%A in ("%ProgramFiles%" "%ProgramW6432%" "%ProgramFiles(x86)%") do (
+if exist "%%~A\Microsoft Office\Office%%#\sppc*dll" (set _present=1& del /s /f /q "%%~A\Microsoft Office\Office%%#\sppc*dll" & if exist "%%~A\Microsoft Office\Office%%#\sppc*dll" set _unerror=1)
+)
+)
+
+for %%# in (System SystemX86) do (
+for %%G in ("Office 15" "Office") do (
+for %%A in ("%ProgramFiles%" "%ProgramW6432%" "%ProgramFiles(x86)%") do (
+if exist "%%~A\Microsoft %%~G\root\vfs\%%#\sppc*dll" (set _present=1& del /s /f /q "%%~A\Microsoft %%~G\root\vfs\%%#\sppc*dll" & if exist "%%~A\Microsoft %%~G\root\vfs\%%#\sppc*dll" set _unerror=1)
+)
+)
+)
+
+::==================================
+
+for %%# in (OSPPC.DLL sppcs.dll) do (
+for %%A in ("%CommonProgramFiles%" "%CommonProgramW6432%" "%CommonProgramFiles(x86)%") do (
+for %%G in ("%%~A\Microsoft Shared\OfficeSoftwareProtectionPlatform\%%#") do (
+set size=0
+set size=%%~zG
+if !size! GEQ 1 if !size! LSS 100000 (
+set _present=1
+del /f /q "%%~G"
+if exist "%%~G" (move /y "%%~G" "!_ttemp!\needsToBeDeleted%random%" %nul%)
+if exist "%%~G" (set _unerror=1) else (echo Deleted file - %%~G)
+)
+if /i sppcs.dll==%%# if !size! GEQ 100000 (
+move /y "%%~G" "%%~A\Microsoft Shared\OfficeSoftwareProtectionPlatform\OSPPC.DLL" %nul%
+if exist "%%~G" (move /y "%%~A\Microsoft Shared\OfficeSoftwareProtectionPlatform\OSPPC.DLL" "!_ttemp!\needsToBeDeleted%random%" %nul%)
+move /y "%%~G" "%%~A\Microsoft Shared\OfficeSoftwareProtectionPlatform\OSPPC.DLL" %nul%
+if exist "%%~G" (set _unerror=1&echo Failed to rename sppcs.dll back to "%%~A\Microsoft Shared\OfficeSoftwareProtectionPlatform\OSPPC.DLL") else (echo Renamed sppcs.dll back to "%%~A\Microsoft Shared\OfficeSoftwareProtectionPlatform\OSPPC.DLL")
+)
+)
+)
+)
+
+::==================================
+
+reg query HKCU\Software\Microsoft\Office\16.0\Common\Licensing\Resiliency %nul% && (
+echo:
+echo Deleting - Registry keys for skipping license check
+
+reg load HKU\DEF_TEMP %SystemDrive%\Users\Default\NTUSER.DAT %nul%
+reg query HKU\DEF_TEMP\Software\Microsoft\Office\16.0\Common\Licensing\Resiliency %nul% && reg delete HKU\DEF_TEMP\Software\Microsoft\Office\16.0\Common\Licensing\Resiliency /f
+reg unload HKU\DEF_TEMP %nul%
+
+set _sidlist=
+for /f "tokens=* delims=" %%a in ('%psc% "$p = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList'; Get-ChildItem $p | ForEach-Object { $pi = (Get-ItemProperty """"$p\$($_.PSChildName)"""").ProfileImagePath; if ($pi -like '*\Users\*' -and (Test-Path """"$pi\NTUSER.DAT"""") -and -not ($_.PSChildName -match '\.bak$')) { Split-Path $_.PSPath -Leaf } }" %nul6%') do (if defined _sidlist (set _sidlist=!_sidlist! %%a) else (set _sidlist=%%a))
+
+if not defined _sidlist (
+for /f "delims=" %%a in ('%psc% "$explorerProc = Get-Process -Name explorer | Where-Object {$_.SessionId -eq (Get-Process -Id $pid).SessionId} | Select-Object -First 1; $sid = (gwmi -Query ('Select * From Win32_Process Where ProcessID=' + $explorerProc.Id)).GetOwnerSid().Sid; $sid" %nul6%') do (set _sidlist=%%a)
+)
+
+for %%# in (!_sidlist!) do (
+
+reg query HKU\%%#\Software\Microsoft\Office\16.0\Common\Licensing\Resiliency %nul% && reg delete HKU\%%#\Software\Microsoft\Office\16.0\Common\Licensing\Resiliency /f
+
+reg query HKU\%%#\Software %nul% || (
+for /f "skip=2 tokens=2*" %%a in ('"reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\%%#" /v ProfileImagePath" %nul6%') do (
+reg load HKU\%%# "%%b\NTUSER.DAT" %nul%
+reg query HKU\%%#\Software\Microsoft\Office\16.0\Common\Licensing\Resiliency %nul% && reg delete HKU\%%#\Software\Microsoft\Office\16.0\Common\Licensing\Resiliency /f
+reg unload HKU\%%# %nul%
+)
+)
+)
+)
+
+::==================================
+
+set "kmskey=HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform\0ff1ce15-a989-479d-af46-f275c6370663"
+reg query "%kmskey%" %nul% && (
+echo:
+echo Deleting - Registry keys for preventing non-genuine banner
+reg delete "%kmskey%" /f
+)
+
+reg query "%kmskey%" /reg:32 %nul% && (
+reg delete "%kmskey%" /f /reg:32
+)
+
+echo __________________________________________________________________________________________
+echo:
+
+if not defined _present (
+echo Ohook activation is not installed.
+) else (
+if defined _unerror (
+call :dk_color %Red% "Failed to uninstall Ohook activation."
+call :oh_checkapps
+if defined checknames (
+call :dk_color %Blue% "Close [!checknames!] and try again."
+call :dk_color %Blue% "If it is still not fixed, reboot your machine using the restart option and try again."
+) else (
+call :dk_color %Blue% "Reboot your machine using the restart option and try again."
+)
+) else (
+call :dk_color %Green% "Successfully uninstalled Ohook activation."
+)
+)
+echo __________________________________________________________________________________________
+
+goto :dk_done
+
+::========================================================================================================================================
+

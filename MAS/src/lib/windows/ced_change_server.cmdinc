@@ -1,0 +1,50 @@
+:ced_change_server
+
+cls
+if not defined terminal (
+mode con cols=105 lines=32
+%psc% "&{$W=$Host.UI.RawUI.WindowSize;$B=$Host.UI.RawUI.BufferSize;$W.Height=31;$B.Height=200;$Host.UI.RawUI.WindowSize=$W;$Host.UI.RawUI.BufferSize=$B;}" %nul%
+)
+
+set key=
+set _chan=
+set "keyflow=Volume:GVLK Retail Volume:MAK OEM:NONSLP OEM:DM PGS:TB Retail:TB:Eval"
+
+call :ced_targetSKU %targetedition%
+if defined targetSKU call :ced_windowskey
+if defined key if defined pkeychannel set _chan=%pkeychannel%
+if not defined key call :changeeditiondata
+
+if not defined key (
+%eline%
+echo [%targetedition% ^| %winbuild%]
+echo Failed to get product key from pkeyhelper.dll.
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+goto dk_done
+)
+
+call :ced_rebootflag
+if defined rebootreq goto dk_done
+
+cls
+echo:
+%showeditionerror%
+if defined dismnotworking call :dk_color %_Yellow% "Note - DISM.exe is not working."
+echo Changing the current edition [%osedition%] %fullbuild% to [%targetedition%]...
+echo:
+
+call :ced_prep
+if defined preperror goto dk_done
+
+echo Applying the command with %_chan% key...
+echo DISM /online /Set-Edition:%targetedition% /ProductKey:%key% /AcceptEula
+DISM /online /Set-Edition:%targetedition% /ProductKey:%key% /AcceptEula
+
+call :ced_postprep
+%line%
+
+goto dk_done
+
+::========================================================================================================================================
+

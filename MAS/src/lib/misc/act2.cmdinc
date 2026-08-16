@@ -1,0 +1,38 @@
+:_act2
+
+if %act_attempt% GTR 4 exit /b
+
+if not "%act_ok%"=="1" (
+if not defined _server call :_taskgetserv
+call :_taskregserv
+)
+
+if not !server_num! GTR %max_servers% (
+
+if "%1"=="act_win" if %_kms38% EQU 1 (
+set act_ok=1
+exit /b
+)
+
+if %_wmic% EQU 1 wmic path !_path! where ID='!_actid!' call Activate %nul%
+if %_wmic% EQU 0 %psc% "try {$null=(([WMISEARCHER]'SELECT ID FROM !_path! where ID=''!_actid!''').Get()).Activate(); exit 0} catch { exit $_.Exception.InnerException.HResult }"
+
+call set errorcode=!errorlevel!
+
+if !errorcode! EQU 0 (
+set act_ok=1
+exit /b
+)
+if "%1"=="act_win" if !errorcode! EQU -1073418187 if %winbuild% LSS 9200 (
+set act_ok=1
+exit /b
+)
+
+set act_ok=0
+set /a act_attempt+=1
+if not defined _server goto _act2
+)
+exit /b
+
+::========================================================================================================================================
+

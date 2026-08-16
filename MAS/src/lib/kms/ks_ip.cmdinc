@@ -1,0 +1,22 @@
+:ks_ip
+
+cls
+set _server=
+echo:
+echo Enter / Paste the %KS% Server address, or just press Enter to return:
+echo:
+set /p _server=
+if not defined _server goto :ks_menu
+set "_server=%_server: =%"
+
+echo:
+echo Enter / Paste the %KS% Port address, or just press Enter to use default:
+echo:
+set /p _port=
+if not defined _port goto :ks_menu
+set "_port=%_port: =%"
+
+goto :ks_menu
+
+::========================================================================================================================================
+

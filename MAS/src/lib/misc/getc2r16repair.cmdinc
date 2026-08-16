@@ -1,0 +1,7 @@
+:getc2r16repair
+
+for %%# in (%_68% %_86%) do (
+for /f "skip=2 tokens=2*" %%a in ('"reg query %%#\ClickToRun\Configuration /v ClientFolder" %nul6%') do if exist "%%b\%2" (set "%1=%%b\%2")
+)
+exit /b
+

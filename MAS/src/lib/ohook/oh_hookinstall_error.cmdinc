@@ -1,0 +1,31 @@
+:oh_hookinstall_error
+
+if defined ierror (
+set error=1
+call :dk_color %Red% "Installing Ohook                        [Failed to %ierror%]"
+echo:
+call :oh_checkapps
+if defined checknames (
+call :dk_color %Blue% "Close [!checknames!] and try again."
+call :dk_color %Blue% "If it is still not fixed, reboot your machine using the restart option and try again."
+) else (
+if /i not "%ierror%"=="Copy" call :dk_color %Blue% "Reboot your machine using the restart option and try again."
+if /i "%ierror%"=="Copy" call :dk_color %Blue% "If you are using any third-party antivirus, check if it is blocking the script."
+)
+echo:
+)
+
+if not defined exhook if not defined ierror (
+if defined hasherror (
+set error=1
+set ierror=1
+call :dk_color %Red% "Modifying Hash of Custom sppcs.dll      [Failed]"
+) else (
+echo Modifying Hash of Custom sppcs.dll      [Successful]
+)
+)
+
+exit /b
+
+::========================================================================================================================================
+

@@ -1,0 +1,130 @@
+:ts_process
+
+if not exist "%pkeypath%" (
+call :dk_color %Red% "Checking pkeyconfig-office.xrm-ms       [Not found. Aborting activation...]"
+set error=1
+exit /b
+)
+
+for %%# in (%_oIds%) do (
+set _actid=
+set _preview=
+set _License=%%#
+
+set skipprocess=
+
+set foundprod=
+call :tsksdata chkprod %%#
+if defined _oMSI if not defined foundprod if /i %tsmethod%==KMS4k (
+set skipprocess=1
+call :dk_color %Red% "Checking Product In Script              [%%# MSI Retail is not supported with KMS4k]"
+if /i %_actmethod%==Auto (
+call :dk_color %Blue% "Connect to the Internet and try again. Script will use the StaticCID activation method."
+) else (
+call :dk_color %Blue% "Use non-KMS4K activation options from the previous menu."
+)
+)
+
+if "%_actprojvis%"=="1" (
+echo %%# | findstr /i "Project Visio" %nul% || (
+set skipprocess=1
+call :dk_color %Gray% "Skipping Because Project/Visio Mode     [%%#]"
+)
+)
+
+if "%_actprojvis%"=="0" if /i %tsmethod%==KMS4k echo %_oIds% | findstr /i "O365" %nul% && (
+echo %%# | findstr /i "Project Visio" %nul% && (
+set skipprocess=1
+echo Skipping Because Mondo Is Available     [%%#]
+)
+)
+
+
+if not defined skipprocess (
+
+if /i not %tsmethod%==KMS4k (
+set no365=
+if "%oVer%"=="15" (echo %%# | findstr /i "O365HomePremRetail" %nul% && set no365=1)
+if "%oVer%"=="16" (echo %%# | findstr /i "O365" %nul% && set no365=1)
+
+if defined no365 (
+set _License=MondoRetail
+set _altoffid=MondoRetail
+call :ks_osppready
+echo Converting Unsupported O365 Office      [%%# To MondoRetail]
+if "%oVer%"=="15" (call :dk_color %Gray% "Mondo 2013 is equivalent to O365 [15.0 version] in terms of the latest features.")
+if "%oVer%"=="16" (call :dk_color %Gray% "Mondo 2016 is equivalent to O365 in terms of the latest features.")
+)
+
+if not defined _oMSI (
+echo %%# | findstr /i "ARM" %nul% && (
+set _License=MondoRetail
+set _altoffid=MondoRetail
+call :ks_osppready
+echo Converting Unsupported OEM-ARM Office   [%%# To MondoRetail]
+)
+)
+)
+
+if not defined _oMSI if /i %tsmethod%==KMS4k if not defined foundprod (
+call :tsksdata getinfo %%#
+if defined _altoffid (
+echo Converting Retail To Volume             [%%# To !_altoffid!]
+) else (
+set _License=MondoVolume
+set _altoffid=MondoVolume
+echo Converting Retail To Volume             [%%# To !_altoffid!] [Using Mondo because %%# is not found in the script]
+)
+echo %%# | find /i "O365" %nul% && (
+if "%oVer%"=="15" (call :dk_color %Gray% "Mondo 2013 is equivalent to O365 [15.0 version] in terms of the latest features.")
+if "%oVer%"=="16" (call :dk_color %Gray% "Mondo 2016 is equivalent to O365 in terms of the latest features.")
+)
+call :ks_osppready
+)
+
+if /i %tsmethod%==KMS4k (
+echo !_License! | find /i "Retail" %nul% && (set keytype=zero) || (set keytype=ks)
+) else (
+set keytype=zero
+)
+
+for /f "delims=" %%a in ('%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':offtsid\:.*';. ([scriptblock]::Create($f[1]))" %nul6%') do (
+echo "%%a" | findstr /r ".*-.*-.*-.*-.*" %nul1% && (set tsids=!tsids! %%a& set _actid=%%a)
+)
+set "_allactid=!tsids!"
+
+if defined _actid (
+echo Checking Activation ID                  [!_actid!] [!_License!]
+) else (
+call :dk_color %Red% "Checking Activation ID                  [Office %oVer%.0 !_License! not found]"
+set error=1
+set showfix=1
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+)
+
+echo %%# | find /i "2024" %nul% && (
+if exist "!_oLPath!\ProPlus2024PreviewVL_*.xrm-ms" if not exist "!_oLPath!\ProPlus2024VL_*.xrm-ms" set _preview=1
+)
+
+if defined _actid (
+echo "!allapps!" | find /i "!_actid!" %nul1% || call :oh_installlic
+)
+)
+)
+
+::  Add SharedComputerLicensing registry key if Retail Office C2R is installed on Windows Server
+::  https://learn.microsoft.com/en-us/office/troubleshoot/office-suite-issues/click-to-run-office-on-terminal-server
+
+if /i not %tsmethod%==KMS4k if defined winserver if defined _config if exist "%_oLPath%\Word2019VL_KMS_Client_AE*.xrm-ms" (
+echo %_oIds% | find /i "Retail" %nul1% && (
+set scaIsNeeded=1
+reg add %_config% /v SharedComputerLicensing /t REG_SZ /d "1" /f %nul1%
+echo Adding SharedComputerLicensing Reg      [Successful] [Needed on Server With Retail Office]"
+)
+)
+
+exit /b
+
+::========================================================================================================================================
+

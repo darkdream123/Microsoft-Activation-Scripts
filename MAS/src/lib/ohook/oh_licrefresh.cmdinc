@@ -1,0 +1,12 @@
+:oh_licrefresh
+
+if exist "%SysPath%\spp\store_test\2.0\tokens.dat" (
+%psc% "Stop-Service sppsvc -force; $sls = Get-WmiObject SoftwareLicensingService; $f=[IO.File]::ReadAllText('!_batp!') -split ':xrm\:.*';. ([scriptblock]::Create($f[1])); ReinstallLicenses" %nul%
+if !errorlevel! NEQ 0 %psc% "$sls = Get-WmiObject SoftwareLicensingService; $f=[IO.File]::ReadAllText('!_batp!') -split ':xrm\:.*';. ([scriptblock]::Create($f[1])); ReinstallLicenses" %nul%
+)
+exit /b
+
+::========================================================================================================================================
+
+::  Check running office apps and notify user
+

@@ -1,0 +1,61 @@
+:_taskact
+
+:: Check KMS38 activation
+
+set gpr=0
+set _kms38=0
+if defined sppwid if %winbuild% GEQ 14393 (
+set _path=%slp%
+set _actid=%sppwid%
+call :_taskgetgrace
+)
+
+if %gpr% NEQ 0 if %gpr% GTR 259200 (
+set _kms38=1
+call :_taskchkEnterpriseG _kms38
+)
+
+:: Set specific K-M-S host to Local Host so that global K-M-S IP can not replace KMS38 activation but can be used with Office and other Windows Editions.
+
+if %_kms38% EQU 1 (
+%nul% reg add "HKLM\%SPPk%\%_wApp%\%sppwid%" /f /v KeyManagementServiceName /t REG_SZ /d "127.0.0.2"
+%nul% reg add "HKLM\%SPPk%\%_wApp%\%sppwid%" /f /v KeyManagementServicePort /t REG_SZ /d "1688"
+)
+
+echo:
+if defined sppwid (
+set _path=%slp%
+set _actid=%sppwid%
+call :_act act_win
+call :_actinfo act_win
+) else (
+if defined t_name echo Checking: Volume version of Windows is not installed
+)
+
+if defined sppoid (
+set _path=%slp%
+for %%# in (%sppoid%) do (
+set _actid=%%#
+call :_act
+if not defined _taskskip call :_actinfo
+)
+)
+
+if defined osppid (
+set _path=%ospp%
+for %%# in (%osppid%) do (
+set _actid=%%#
+call :_act
+if not defined _taskskip call :_actinfo
+)
+)
+
+if not defined sppoid if not defined osppid if defined t_name (
+echo:
+echo Checking: Volume version of Office is not installed
+)
+
+exit /b
+
+::========================================================================================================================================
+

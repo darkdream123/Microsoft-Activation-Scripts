@@ -1,0 +1,51 @@
+:_taskIntConnected
+
+::========================================================================================================================================
+
+call :_taskclear-cache
+
+::  Check WMI and sppsvc Errors
+
+set applist=
+net start %_slser% /y %nul%
+if %_wmic% EQU 1 set "chkapp=for /f "tokens=2 delims==" %%a in ('"wmic path %slp% where (ApplicationID='%_wApp%') get ID /VALUE" 2^>nul')"
+if %_wmic% EQU 0 set "chkapp=for /f "tokens=2 delims==" %%a in ('%psc% "(([WMISEARCHER]'SELECT ID FROM %slp% WHERE ApplicationID=''%_wApp%''').Get()).ID ^| %% {echo ('ID='+$_)}" 2^>nul')"
+%chkapp% do (if defined applist (call set "applist=!applist! %%a") else (call set "applist=%%a"))
+
+if not defined applist (
+set _tserror=1
+if %_wmic% EQU 1 wmic path Win32_ComputerSystem get CreationClassName /value 2>nul | find /i "computersystem" 1>nul
+if %_wmic% EQU 0 %psc% "Get-CIMInstance -Class Win32_ComputerSystem | Select-Object -Property CreationClassName" 2>nul | find /i "computersystem" 1>nul
+if !errorlevel! NEQ 0 (set e_wmispp=WMI, SPP) else (set e_wmispp=SPP)
+echo:
+echo Error: Not Respoding- !e_wmispp!
+echo:
+)
+
+::========================================================================================================================================
+
+::  Check installed volume products activation ID's
+
+call :_taskgetids sppwid %slp% windows
+call :_taskgetids sppoid %slp% office
+call :_taskgetids osppid %ospp% office
+
+::========================================================================================================================================
+
+echo:
+echo Renewing K-M-S activation for all installed Volume products
+
+if not defined sppwid if not defined sppoid if not defined osppid (
+echo:
+echo No installed Volume Windows / Office product found
+echo:
+echo Renewing K-M-S server
+call :_taskgetserv
+call :_taskregserv
+goto :_skipact
+)
+
+::========================================================================================================================================
+
+call :_taskact
+

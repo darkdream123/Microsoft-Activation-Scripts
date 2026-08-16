@@ -1,0 +1,30 @@
+:oe_cleanupreg
+
+::  Cleanup Office update related registries, thanks to @abbodi1406
+::  https://techcommunity.microsoft.com/t5/office-365-blog/how-to-manage-office-365-proplus-channels-for-it-pros/ba-p/795813
+::  https://learn.microsoft.com/en-us/microsoft-365-apps/updates/change-update-channels#considerations-when-changing-channels
+
+echo:
+echo Cleaning Office update registry keys...
+echo Adding new update channel to registry keys...
+echo:
+
+%nul% reg add %o16c2r_reg%\Configuration /v CDNBaseUrl /t REG_SZ /d "https://officecdn.microsoft.com/pr/%targetFFN%" /f
+%nul% reg add %o16c2r_reg%\Configuration /v UpdateChannel /t REG_SZ /d "https://officecdn.microsoft.com/pr/%targetFFN%" /f
+%nul% reg add %o16c2r_reg%\Configuration /v UpdateChannelChanged /t REG_SZ /d "True" /f
+%nul% reg delete %o16c2r_reg%\Configuration /v UnmanagedUpdateURL /f
+%nul% reg delete %o16c2r_reg%\Configuration /v UpdateUrl /f
+%nul% reg delete %o16c2r_reg%\Configuration /v UpdatePath /f
+%nul% reg delete %o16c2r_reg%\Configuration /v UpdateToVersion /f
+%nul% reg delete %o16c2r_reg%\Updates /v UpdateToVersion /f
+%nul% reg delete HKLM\SOFTWARE\Policies\Microsoft\office\16.0\common\officeupdate /f
+%nul% reg delete HKLM\SOFTWARE\Policies\Microsoft\office\16.0\common\officeupdate /f /reg:32
+%nul% reg delete HKCU\SOFTWARE\Policies\Microsoft\office\16.0\common\officeupdate /f
+%nul% reg delete HKLM\SOFTWARE\Policies\Microsoft\cloud\office\16.0\Common\officeupdate /f
+%nul% reg delete HKLM\SOFTWARE\Policies\Microsoft\cloud\office\16.0\Common\officeupdate /f /reg:32
+%nul% reg delete HKCU\Software\Policies\Microsoft\cloud\office\16.0\Common\officeupdate /f
+
+exit /b
+
+::========================================================================================================================================
+

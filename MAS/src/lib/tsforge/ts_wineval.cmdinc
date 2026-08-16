@@ -1,0 +1,121 @@
+:ts_wineval
+
+call :dk_color %Gray% "Checking OS Edition                     [%tsedition%] [Evaluation edition found]"
+call :dk_color %Blue% "Evaluation editions cannot be activated outside of evaluation period."
+
+if exist "%SystemRoot%\Servicing\Packages\Microsoft-Windows-Server*Edition~*.mum" (
+call :dk_color %Blue% "Script will reset evaluation period, but to permanently activate Windows,"
+call :dk_color %Blue% "Go back to main menu and use [Change Edition] option and change to Non-eval edition."
+) else (
+call :dk_color %Blue% "Script will reset evaluation period, but to permanently activate Windows, install Non-eval edition."
+call :dk_color %_Yellow% "%mas%evaluation_editions"
+)
+
+::  Check Internet connection
+
+set _int=
+for %%a in (l.root-servers.net resolver1.opendns.com download.windowsupdate.com google.com) do if not defined _int (
+for /f "delims=[] tokens=2" %%# in ('ping -n 1 %%a') do (if not "%%#"=="" set _int=1)
+)
+
+if not defined _int (
+%psc% "If([Activator]::CreateInstance([Type]::GetTypeFromCLSID([Guid]'{DCB00C01-570F-4A9B-8D69-199FDBA5723B}')).IsConnectedToInternet){Exit 0}Else{Exit 1}"
+if !errorlevel!==0 (set _int=1&set ping_f= But Ping Failed)
+)
+
+if defined _int (
+echo Checking Internet Connection            [Connected%ping_f%]
+) else (
+set error=1
+call :dk_color %Red% "Checking Internet Connection            [Not Connected]"
+call :dk_color %Blue% "Internet is required for Windows Evaluation activation."
+)
+
+::  List of products lacking activable evaluation keys and ISOs
+
+::  c4b908d2-c4b9-439d-8ff0-48b656a24da4_EmbeddedIndustryEEval_8.1
+::  9b74255b-afe1-4da7-a143-98d1874b2a6c_EnterpriseNEval_8
+::  7fd0a88b-fb89-415f-9b79-84adc6a7cd56_EnterpriseNEval_8.1
+::  994578eb-193c-4c99-bea0-2483274c9afd_EnterpriseSNEval_2015
+::  b9f3109c-bfa9-4f37-9824-6dba9ee62056_ServerStorageStandardEval_2012R2
+::  2d3b7269-65f4-467d-9d51-dbe0e5a4e668_ServerStorageWorkgroupEval_2012R2
+
+:: --------
+
+::  1st column = Activation ID
+::  2nd column = Activable evaluation key
+::  3rd column = Edition ID
+::  4th column = Windows version (for reference only)
+::  5th column = NoAct = activation is not working
+::  Separator  = _
+
+set f=
+set key=
+set eval=
+if not defined allapps call :dk_actids 55c92734-d682-4d71-983e-d6ec3f16059f
+
+for %%# in (
+d9eea459-1e6b-499d-8486-e68163f2a8be_N3QJR-YCWKK-RVJGK-GQFMX-T8%f%2BF_EmbeddedIndustryEval_8.1
+fbd4c5c6-adc6-4740-bc65-b2dc6dc249c1_MJ8TN-42JH8-886MT-8THCF-36%f%67B_EnterpriseEval_8_NoAct_          REM New time based activation not available
+0eebbb45-29d4-49cb-ba87-a23db0cce40a_76FKW-8NR3K-QDH4P-3C87F-JH%f%TTW_EnterpriseEval_8.1
+3f4c0546-36c6-46a8-a37f-be13cdd0cf25_7HBDQ-QNKVG-K4RBF-HMBY6-YG%f%9R6_EnterpriseEval_10
+1f8dbfe8-defa-4676-b5a6-f76949a01540_4N8VT-7Y686-43DGV-THTW9-M9%f%8W7_EnterpriseNEval_10
+57a4ebb6-8e0c-41f8-b79e-8872ddc971ef_W63GF-7N4D9-GQH3K-K4FP7-9B%f%T6C_EnterpriseSEval_2015
+b47dd250-fd6a-44c8-9217-03aca6e4812e_N4DMT-RJKDQ-XR6H7-3DKKP-3Y%f%JWT_EnterpriseSEval_2016
+267bf82d-08e8-4046-b061-9ef3f8ac2b5a_N7HMH-MK36Q-M4X93-76KQ2-6J%f%HWR_EnterpriseSEval_2019
+aff25f1f-fb53-4e27-95ef-b8e5aca10ac6_9V4NK-624Y3-VK47R-Q27GP-27%f%PGF_EnterpriseSEval_2021
+399f0697-886b-4881-894c-4ff6c52e7d8f_CYPB3-XNV9V-QR4G4-Q3B8K-KQ%f%FGJ_EnterpriseSEval_2024
+6162e8c2-3c30-46e1-b964-0de603498e2d_R34N9-HJ6Q3-GBX4F-Q24KQ-49%f%DF7_EnterpriseSNEval_2016
+aed14fc8-907d-44fb-a3a1-d5d8e638acb3_MHN9Q-RD9PW-BFHDQ-9FTWQ-WQ%f%PF8_EnterpriseSNEval_2019
+5dd0c869-eae9-40ce-af48-736692cd8e43_XCN62-29X92-C4T8X-WP82X-DY%f%MJ8_EnterpriseSNEval_2021
+522cc0dc-3c7b-4258-ae68-f297ca63b64e_Y8DJM-NPXF3-QG4MH-W7WJK-KQ%f%FGM_EnterpriseSNEval_2024
+aa708397-8618-42de-b120-a44190ef456d_R63DV-9NPDX-QVWJF-HMR8V-M4%f%K7D_IoTEnterpriseSEval_2024
+cd25b1e8-5839-4a96-a769-b6abe3aa5dee_73BMN-332G9-DX6B8-FGDT3-GF%f%YT6_ServerDatacenterEval_2012
+e628c5e8-2300-4429-8b80-a8b21bd7ce0a_WPR94-KN3J7-MRB7X-JPJV8-RX%f%7J2_ServerDatacenterEval_2012R2
+01398239-85ff-487f-9e90-0e3cc5bcc92e_QVTQ9-GNRBH-JQ9G7-W7FBW-RX%f%9QR_ServerDatacenterEval_2016
+5ea4af9e-fd59-4691-b61c-1fc1ff3e309e_KNW3G-22YD2-7QKQJ-2RF2X-H6%f%F8M_ServerDatacenterEval_2019
+1d02774d-66ab-4c57-8b14-e254fdce09d4_PK7JN-24236-FH7JP-V792F-37%f%CYR_ServerDatacenterEval_2021
+96794a98-097f-42fe-8f28-2c38ea115229_M4RNW-CRTHF-TY7BG-DDHG6-J2%f%T92_ServerDatacenterEval_2025
+38d172c7-36b3-4e4b-b435-fd0b06b95c6e_RNFGD-WFFQR-XQ8BG-K7QQK-GJ%f%CP9_ServerStandardEval_2012
+4fc45a88-26b5-4cf9-9eef-769ee3f0a016_79M8M-N36BX-8YGJY-2G9KP-3Y%f%GPC_ServerStandardEval_2012R2
+9dfa8ec0-7665-4b9d-b2cb-bfc2dc37c9f4_9PBKX-4NHGT-QWV4C-4JD94-TV%f%KQ6_ServerStandardEval_2016
+7783a126-c108-4cf7-b59f-13c78c7a7337_J4WNC-H9BG3-6XRX4-3XD8K-Y7%f%XRX_ServerStandardEval_2019
+c1a197b6-ba5e-4394-b9bf-b659a6c1b873_7PBJM-MNVPD-MBQD7-TYTY4-W8%f%JDY_ServerStandardEval_2021
+753c53a2-4274-4339-8c2e-f66c0b9646c5_YPBVM-HFNWQ-CTF9M-FR4RR-7H%f%9YG_ServerStandardEval_2025
+0de5ff31-2d62-4912-b1a8-3ea01d2461fd_3CKBN-3GJ8X-7YT4X-D8DDC-D6%f%69B_ServerStorageStandardEval_2012
+fb08f53a-e597-40dc-9f08-8bbf99f19b92_NCJ6J-J23VR-DBYB3-QQBJF-W8%f%CP7_ServerStorageWorkgroupEval_2012
+) do (
+for /f "tokens=1-5 delims=_" %%A in ("%%#") do if %tsedition%==%%C if not defined key (
+echo "%allapps%" | find /i "%%A" %nul1% && (
+set key=%%B
+set eval=1
+if /i "%%E"=="NoAct" set noact=1
+echo Checking Activation ID                  [%%A] [%%C]
+)
+)
+)
+
+if not defined key (
+set error=1
+call :dk_color %Red% "Checking Activation ID                  [%tsedition% not found in the script]"
+call :dk_color %Blue% "Make sure you are using the updated version of the script."
+goto :ts_esu
+)
+
+set resetstuff=1
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':tsforge\:.*';. ([scriptblock]::Create($f[1]))"
+set resetstuff=
+if !errorlevel!==3 (
+set error=1
+call :dk_color %Red% "Resetting Rearm / GracePeriod           [Failed]"
+call :dk_color %Blue% "%_fixmsg%"
+goto :ts_esu
+) else (
+echo Resetting Rearm / GracePeriod           [Successful]
+)
+
+set generickey=1
+call :dk_inskey "[%key%]"
+
+::========================================================================================================================================
+

@@ -1,0 +1,42 @@
+:ts_starto15c2r
+
+::  Process Office 15.0 C2R
+
+if not defined o15c2r goto :ts_starto16c2r
+
+call :ts_reset
+call :dk_actids 0ff1ce15-a989-479d-af46-f275c6370663
+
+set oVer=15
+for /f "skip=2 tokens=2*" %%a in ('"reg query %o15c2r_reg% /v InstallPath" %nul6%') do (set "_oRoot=%%b\root")
+for /f "skip=2 tokens=2*" %%a in ('"reg query %o15c2r_reg%\Configuration /v Platform" %nul6%') do (set "_oArch=%%b")
+for /f "skip=2 tokens=2*" %%a in ('"reg query %o15c2r_reg%\Configuration /v VersionToReport" %nul6%') do (set "_version=%%b")
+for /f "skip=2 tokens=2*" %%a in ('"reg query %o15c2r_reg%\Configuration /v ProductReleaseIds" %nul6%') do (set "_prids=%o15c2r_reg%\Configuration /v ProductReleaseIds" & set "_config=%o15c2r_reg%\Configuration")
+if not defined _oArch   for /f "skip=2 tokens=2*" %%a in ('"reg query %o15c2r_reg%\propertyBag /v Platform" %nul6%') do (set "_oArch=%%b")
+if not defined _version for /f "skip=2 tokens=2*" %%a in ('"reg query %o15c2r_reg%\propertyBag /v version" %nul6%') do (set "_version=%%b")
+if not defined _prids   for /f "skip=2 tokens=2*" %%a in ('"reg query %o15c2r_reg%\propertyBag /v ProductReleaseId" %nul6%') do (set "_prids=%o15c2r_reg%\propertyBag /v ProductReleaseId" & set "_config=%o15c2r_reg%\propertyBag")
+
+echo "%o15c2r_reg%" | find /i "Wow6432Node" %nul1% && (set _tok=10) || (set _tok=9)
+for /f "tokens=%_tok% delims=\" %%a in ('reg query %o15c2r_reg%\ProductReleaseIDs\Active %nul6% ^| findstr /i "Retail Volume"') do (
+echo "!_oIds!" | find /i " %%a " %nul1% || (set "_oIds= !_oIds! %%a ")
+)
+
+set "_oLPath=%_oRoot%\Licenses"
+set "pkeypath=%_oRoot%\Office15\pkeyconfig-office.xrm-ms"
+set "_oIntegrator=%_oRoot%\integration\integrator.exe"
+
+echo:
+echo Processing Office...                    [C2R ^| %_version% ^| %_oArch%]
+
+if not defined _oIds (
+call :dk_color %Red% "Checking Installed Products             [Product IDs not found. Aborting activation...]"
+set error=1
+goto :ts_starto16c2r
+)
+
+call :oh_expiredpreview 2013
+if "%_actprojvis%"=="0" call :oh_fixprids
+call :ts_process
+
+::========================================================================================================================================
+

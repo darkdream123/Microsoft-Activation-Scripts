@@ -1,0 +1,21 @@
+:oe_getlangs
+
+if "%1"=="" (
+set langreg=culture
+) else (
+set langreg=%1.16
+)
+
+set _allLangs=
+echo "%o16c2r_reg%" | find /i "Wow6432Node" %nul1% && (set _tok=10) || (set _tok=9)
+for /f "tokens=%_tok% delims=\" %%a in ('reg query "%o16c2r_reg%\ProductReleaseIDs\%_actconfig%\%langreg%" /f "-" /k ^| findstr /i "%langreg%\\.*-.*"') do (
+if defined _allLangs (set "_allLangs=!_allLangs!_%%a") else (set "_allLangs=%%a")
+)
+
+set _allLangs=%_allLangs:.16=%
+exit /b
+
+::========================================================================================================================================
+
+::  Check Internet connection
+

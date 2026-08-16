@@ -1,0 +1,68 @@
+:ks_menu
+
+if defined _server set _norentsk=1
+if not defined _server set _port=
+
+if %_unattended%==0 (
+cls
+if not defined terminal mode 76, 30
+title  Online %KS% Activation %masver%
+
+echo:
+echo:
+echo:
+echo:
+if exist "%ProgramFiles%\Activation-Renewal\Activation_task.cmd" (
+find /i "Ver:2.7" "%ProgramFiles%\Activation-Renewal\Activation_task.cmd" %nul% || (
+call :dk_color %_Yellow% "              Old renewal task found, run activation to update it."
+)
+)
+echo        ______________________________________________________________
+echo: 
+echo               [1] Activate - Windows
+echo               [2] Activate - Office [All]
+echo               [3] Activate - Office [Project/Visio]
+echo               [4] Activate - All
+echo               _______________________________________________  
+echo: 
+if %_norentsk%==0 (
+echo               [5] Renewal Task With Activation       [Yes]
+) else (
+call :dk_color2 %_White% "              [5] Renewal Task With Activation        " %_Yellow% "[No]"
+)
+if %_NoEditionChange%==0 (
+echo               [6] Change Edition If Needed           [Yes]
+) else (
+call :dk_color2 %_White% "              [6] Change Edition If Needed            " %_Yellow% "[No]"
+)
+echo               [7] Uninstall Online %KS%
+echo               _______________________________________________       
+echo:
+if defined _server (
+echo               [8] Set %KS% Server/Port [%_server%] [%_port%]
+) else (
+echo               [8] Set %KS% Server/Port
+)
+echo               [9] Download Office
+echo               [0] %_exitmsg%
+echo        ______________________________________________________________
+echo:
+call :dk_color2 %_White% "       " %_Green% "Choose a menu option using your keyboard [1,2,3,4,5,6,7,8,9,0]"
+choice /C:1234567890 /N
+set _el=!errorlevel!
+
+if !_el!==10 exit /b
+if !_el!==9 start %mas%genuine-installation-media & goto :ks_menu
+if !_el!==8 goto :ks_ip
+if !_el!==7 cls & call :ks_uninstall & cls & goto :ks_menu
+if !_el!==6 (if %_NoEditionChange%==0 (set _NoEditionChange=1) else (set _NoEditionChange=0)) & goto :ks_menu
+if !_el!==5 (if %_norentsk%==0 (set _norentsk=1) else (set _norentsk=0)) & goto :ks_menu
+if !_el!==4 cls & setlocal & set "_actwin=1" & set "_actoff=1" & set "_actprojvis=0" & call :ks_start & endlocal & cls & goto :ks_menu
+if !_el!==3 cls & setlocal & set "_actwin=0" & set "_actoff=0" & set "_actprojvis=1" & call :ks_start & endlocal & cls & goto :ks_menu
+if !_el!==2 cls & setlocal & set "_actwin=0" & set "_actoff=1" & set "_actprojvis=0" & call :ks_start & endlocal & cls & goto :ks_menu
+if !_el!==1 cls & setlocal & set "_actwin=1" & set "_actoff=0" & set "_actprojvis=0" & call :ks_start & endlocal & cls & goto :ks_menu
+goto :ks_menu
+)
+
+::========================================================================================================================================
+

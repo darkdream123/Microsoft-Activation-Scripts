@@ -1,0 +1,123 @@
+:oe_editionchangefinal
+
+cls
+if not defined terminal mode 105, 32
+
+::  Check for Project and Visio with unsupported language
+
+set projvis=
+set langmatched=
+echo: %Project_st% %Visio_st% | find /i "ON" %nul% && set projvis=1
+echo: %targetedition% | findstr /i "Project Visio" %nul% && set projvis=1
+
+if defined projvis (
+for %%# in (
+ar-sa
+cs-cz
+da-dk
+de-de
+el-gr
+en-us
+es-es
+fi-fi
+fr-fr
+he-il
+hu-hu
+it-it
+ja-jp
+ko-kr
+nb-no
+nl-nl
+pl-pl
+pt-br
+pt-pt
+ro-ro
+ru-ru
+sk-sk
+sl-si
+sv-se
+tr-tr
+uk-ua
+zh-cn
+zh-tw
+) do (
+if /i "%_lang%"=="%%#" set langmatched=1
+)
+if not defined langmatched (
+%eline%
+echo %_lang% language is not available for Project/Visio apps.
+call :dk_color %Blue% "Install Office in the supported language for Project/Visio from the below URL."
+set fixes=%fixes% %mas%genuine-installation-media
+call :dk_color %_Yellow% "%mas%genuine-installation-media"
+goto :oe_goback
+)
+)
+
+::  Thanks to @abbodi1406 for first discovering OfficeClickToRun.exe uses
+::  Thanks to @may for the suggestion to use it to change edition with CDN as a source
+::  OfficeClickToRun.exe with productstoadd method is used here to add editions
+::  It uses delta updates, meaning that since it's using same installed build, it will consume very less Internet
+
+call :oe_getlangs
+
+set "c2rcommand="%_c2rExe%" platform=%_oArch% culture=%_lang% productstoadd=%targetedition%.16_%_allLangs% cdnbaseurl.16=http://officecdn.microsoft.com/pr/%_updch% baseurl.16=http://officecdn.microsoft.com/pr/%_updch% version.16=%_version% mediatype.16=CDN sourcetype.16=CDN deliverymechanism=%_updch% %targetedition%.excludedapps.16=groove%excludelist% flt.useteamsaddon=disabled flt.usebingaddononinstall=disabled flt.usebingaddononupdate=disabled"
+
+if %change%==1 (
+set "c2rcommand=!c2rcommand! productstoremove=AllProducts"
+)
+
+echo:
+echo Running the below command, please wait...
+echo:
+echo %c2rcommand%
+%c2rcommand%
+set errorcode=%errorlevel%
+timeout /t 10 %nul%
+
+echo:
+set suggestchannel=
+
+if %errorcode% EQU 0 (
+if %change%==1 (
+echo %targetedition% | find /i "2019Volume" %nul% && (
+if not defined ltsc19 set suggestchannel=Production::LTSC
+if /i not %_AudienceData%==Production::LTSC set suggestchannel=Production::LTSC
+if /i not %_updch%==F2E724C1-748F-4B47-8FB8-8E0D210E9208 set suggestchannel=Production::LTSC
+)
+
+echo %targetedition% | find /i "2021Volume" %nul% && (
+if not defined ltsc21 set suggestchannel=Production::LTSC2021
+if /i not %_AudienceData%==Production::LTSC2021 set suggestchannel=Production::LTSC2021
+if /i not %_updch%==5030841D-C919-4594-8D2D-84AE4F96E58E set suggestchannel=Production::LTSC2021
+)
+
+echo %targetedition% | find /i "2024Volume" %nul% && (
+if not defined ltsc24 set suggestchannel=Production::LTSC2024
+if /i not %_AudienceData%==Production::LTSC2024 set suggestchannel=Production::LTSC2024
+if /i not %_updch%==7983BAC0-E531-40CF-BE00-FD24FE66619C set suggestchannel=Production::LTSC2024
+)
+
+echo %targetedition% | findstr /R "20.*Volume" %nul% || (
+if defined ltscfound set suggestchannel=Production::CC
+echo %_AudienceData% | find /i "LTSC" %nul% && set suggestchannel=Production::CC
+)
+
+if defined suggestchannel (
+call :dk_color %Gray% "Mismatch found in update channel and installed product."
+call :dk_color %Blue% "It is recommended to change the update channel to [!suggestchannel!] from the previous menu."
+)
+echo:
+)
+call :dk_color %Gray% "To activate Office, run the activation option from the main menu."
+) else (
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+)
+
+call :oe_tempcleanup
+goto :oe_goback
+
+::========================================================================================================================================
+
+::  Edit Office edition
+

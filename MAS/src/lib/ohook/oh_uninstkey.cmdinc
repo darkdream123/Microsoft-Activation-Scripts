@@ -1,0 +1,42 @@
+:oh_uninstkey
+
+set upk_result=0
+call :dk_actid 0ff1ce15-a989-479d-af46-f275c6370663
+
+if "%_actprojvis%"=="1" (
+for /f "delims=" %%a in ('%psc% "Get-WmiObject -Query 'SELECT ID, Description, LicenseFamily FROM %spp% WHERE ApplicationID=''0ff1ce15-a989-479d-af46-f275c6370663'' AND PartialProductKey IS NOT NULL' | Where-Object { $_.LicenseFamily -notmatch 'Project' -and $_.LicenseFamily -notmatch 'Visio' } | Select-Object -ExpandProperty ID" %nul6%') do call set "_allactid=%%a !_allactid!"
+for /f "delims=" %%a in ('%psc% "Get-WmiObject -Query 'SELECT ID, Description, LicenseFamily FROM %spp% WHERE ApplicationID=''0ff1ce15-a989-479d-af46-f275c6370663'' AND PartialProductKey IS NOT NULL' | Where-Object { '!_allactid!' -contains $_.ID -and ($_.LicenseFamily -match 'Project' -or $_.LicenseFamily -match 'Visio') } | Select-Object -ExpandProperty ID" %nul6%') do call set "_allactid=%%a !_allactid!"
+)
+
+for %%# in (%apps%) do (
+echo "%_allactid%" | find /i "%%#" %nul1% || (
+
+if %_wmic% EQU 1 wmic path %spp% where ID='%%#' call UninstallProductKey %nul%
+if %_wmic% EQU 0 %psc% "$null=([WMI]'%spp%=''%%#''').UninstallProductKey()" %nul%
+
+if !errorlevel!==0 (
+set upk_result=1
+) else (
+set error=1
+set upk_result=2
+)
+)
+)
+
+if defined ohookact if not %upk_result%==0 echo:
+if %upk_result%==1 echo Uninstalling Other/Grace Keys           [Successful]
+if %upk_result%==2 (
+call :dk_color %Red% "Uninstalling Other/Grace Keys           [Failed]"
+if not defined showfix (
+call :dk_color %Blue% "%_fixmsg%"
+echo:
+set showfix=1
+)
+)
+exit /b
+
+::========================================================================================================================================
+
+::  Refresh Windows Insider Preview Licenses
+::  It required in Insider versions otherwise office may not activate
+

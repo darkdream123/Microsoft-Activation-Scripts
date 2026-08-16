@@ -1,0 +1,202 @@
+:rebuildspptok
+
+echo:
+echo %line%
+echo:
+call :dk_color %Blue% "Rebuilding SPP licensing tokens..."
+echo:
+
+echo Clearing KMS Cache...
+echo:
+call :_taskclear-cache
+
+%nul% reg query "HKLM\%SPPk%\%_wApp%" && (
+echo Removing KMS38 protection...
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':regdel\:.*';. ([scriptblock]::Create($f[1]))"
+%nul% reg delete "HKLM\%SPPk%\%_wApp%" /f
+%nul% reg query "HKLM\%SPPk%\%_wApp%" && (
+call :dk_color %Red% "Failed to remove KMS38 protection."
+) || (
+echo Successfully removed KMS38 protection.
+echo Successfully cleared KMS Cache.
+)
+) || (
+echo Successfully cleared KMS Cache.
+)
+echo:
+
+call :scandat check
+
+if not defined token (
+call :dk_color %Red% "tokens.dat file not found."
+) else (
+echo tokens.dat file: [%token%]
+)
+
+set tokenstore=
+set badregistry=
+for /f "skip=2 tokens=2*" %%a in ('reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v TokenStore %nul6%') do call set "tokenstore=%%b"
+if %winbuild% GEQ 9200 if /i not "%tokenstore%"=="%SysPath%\spp\store" if /i not "%tokenstore%"=="%SysPath%\spp\store\2.0" if /i not "%tokenstore%"=="%SysPath%\spp\store_test\2.0" (
+set badregistry=1
+echo:
+call :dk_color %Red% "Correct path not found in TokenStore Registry [%tokenstore%]"
+)
+
+::  Check sppsvc permissions and apply fixes
+
+if %winbuild% GEQ 9200 if not defined badregistry (
+echo:
+echo Checking SPP permission related issues...
+call :checkperms
+if defined permerror (
+call :dk_color %Red% "[!permerror!]"
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':fixsppperms\:.*';. ([scriptblock]::Create($f[1]))" %nul%
+call :checkperms
+if defined permerror (
+call :dk_color %Red% "[!permerror!] [Failed To Fix]"
+) else (
+call :dk_color %Green% "[Successfully Fixed]"
+)
+) else (
+echo [No Error Found]
+)
+)
+
+echo:
+echo Stopping %_slser% service...
+%psc% Stop-Service %_slser% -force %nul%
+
+set w=
+set _sppint=
+for %%# in (SppEx%w%tComObj.exe %_slexe%) do (reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Ima%w%ge File Execu%w%tion Options\%%#" %nul% && (set _sppint=1))
+if defined _sppint (
+echo:
+echo Removing SPP IFEO registry keys...
+for %%# in (SppE%w%xtComObj.exe %_slexe%) do (reg delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Ima%w%ge File Execu%w%tion Options\%%#" /f %nul%)
+)
+
+if %winbuild% LSS 9200 if not defined _vis (
+REM Fix issues caused by Update KB971033 in Windows 7
+REM https://support.microsoft.com/en-us/help/4487266
+echo:
+echo Checking Update KB971033...
+%psc% "if (Get-Hotfix -Id KB971033 -ErrorAction SilentlyContinue) {Exit 3}" %nul%
+if !errorlevel!==3 (
+echo Found, uninstalling it...
+wusa /uninstall /quiet /norestart /kb:971033
+) else (
+echo [Not Found]
+)
+%psc% Stop-Service sppuinotify -force %nul%
+sc config sppuinotify start= disabled
+del /f /q %SysPath%\7B296FB0-376B-497e-B012-9C450E1B7327-*.C7483456-A289-439d-8115-601632D005A0 /ah
+)
+
+::  Delete registry keys that are not deleted by activation scripts
+
+if not defined _vis (
+echo:
+echo Cleaning some licensing-related registry keys...
+%nul% reg delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v "ServiceSessionId" /f
+%nul% reg delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v "LicStatusArray" /f
+%nul% reg delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v "PolicyValuesArray" /f
+%nul% reg delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v "actionlist" /f
+%nul% reg delete "HKLM\SOFTWARE\Microsoft\OfficeSoftwareProtectionPlatform\data" /f
+)
+
+echo:
+call :scandat delete
+call :scandat check
+
+if defined token (
+echo:
+call :dk_color %Red% "Failed to delete .dat files."
+echo:
+)
+
+if defined _vis (
+%psc% Start-Service %_slser% %nul%
+)
+
+echo:
+echo Reinstalling system licenses...
+%psc% "$sls = Get-WmiObject SoftwareLicensingService; $f=[IO.File]::ReadAllText('!_batp!') -split ':xrm\:.*';. ([scriptblock]::Create($f[1])); ReinstallLicenses" %nul%
+if %errorlevel% NEQ 0 %psc% "$sls = Get-WmiObject SoftwareLicensingService; $f=[IO.File]::ReadAllText('!_batp!') -split ':xrm\:.*';. ([scriptblock]::Create($f[1])); ReinstallLicenses" %nul%
+if %errorlevel% EQU 0 (
+echo [Successful]
+) else (
+call :dk_color %Red% "[Failed]"
+)
+
+call :scandat check
+
+echo:
+if not defined token (
+call :dk_color %Red% "Failed to rebuild tokens.dat file."
+) else (
+echo tokens.dat file was rebuilt successfully.
+)
+
+if %winbuild% LSS 9200 if not defined _vis (
+sc config sppuinotify start= demand
+)
+
+::========================================================================================================================================
+
+::  Rebuild OSPP Tokens
+
+echo:
+echo %line%
+echo:
+call :dk_color %Blue% "Rebuilding OSPP licensing tokens..."
+echo:
+
+sc qc osppsvc %nul% || (
+echo OSPP-based Office is not installed.
+echo Skipping rebuilding OSPP tokens...
+goto :repairoffice
+)
+
+call :scandatospp check
+
+if not defined token (
+call :dk_color %Red% "tokens.dat file not found."
+) else (
+echo tokens.dat file: [%token%]
+)
+
+echo:
+echo Stopping osppsvc service...
+%psc% Stop-Service osppsvc -force %nul%
+
+echo:
+call :scandatospp delete
+call :scandatospp check
+
+if defined token (
+echo:
+call :dk_color %Red% "Failed to delete .dat files."
+echo:
+)
+
+echo:
+echo Starting osppsvc service to generate tokens.dat...
+%psc% Start-Service osppsvc %nul%
+call :scandatospp check
+if not defined token (
+%psc% Stop-Service osppsvc -force %nul%
+%psc% Start-Service osppsvc %nul%
+timeout /t 3 %nul%
+)
+
+call :scandatospp check
+
+echo:
+if not defined token (
+call :dk_color %Red% "Failed to rebuild tokens.dat file."
+) else (
+echo tokens.dat file was rebuilt successfully.
+)
+
+::========================================================================================================================================
+

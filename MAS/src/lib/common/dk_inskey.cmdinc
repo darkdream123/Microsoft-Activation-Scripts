@@ -1,0 +1,28 @@
+:dk_inskey
+
+if %_wmic% EQU 1 wmic path %sps% where __CLASS='%sps%' call InstallProductKey ProductKey="%key%" %nul%
+if %_wmic% EQU 0 %psc% "try { $null=(([WMISEARCHER]'SELECT Version FROM %sps%').Get()).InstallProductKey('%key%'); exit 0 } catch { exit $_.Exception.InnerException.HResult }" %nul%
+set keyerror=%errorlevel%
+cmd /c exit /b %keyerror%
+if %keyerror% NEQ 0 set "keyerror=[0x%=ExitCode%]"
+
+if defined generickey (set "keyecho=Installing Generic Product Key         ") else (set "keyecho=Installing Product Key                 ")
+if %keyerror% EQU 0 (
+if %sps%==SoftwareLicensingService call :dk_refresh
+echo %keyecho% %~1 [Successful]
+) else (
+call :dk_color %Red% "%keyecho% %~1 [Failed] %keyerror%"
+if not defined showfix (
+if defined altapplist call :dk_color %Red% "Activation ID not found for this key."
+call :dk_color %Blue% "%_fixmsg%"
+echo:
+set showfix=1
+)
+set error=1
+)
+
+set generickey=
+exit /b
+
+::  Activation command
+

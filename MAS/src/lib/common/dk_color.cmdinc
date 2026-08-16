@@ -1,0 +1,11 @@
+:dk_color
+
+if %_NCS% EQU 1 (
+echo %esc%[%~1%~2%esc%[0m
+) else if exist %ps% (
+%psc% write-host -back '%1' -fore '%2' '%3'
+) else if not exist %ps% (
+echo %~3
+)
+exit /b
+

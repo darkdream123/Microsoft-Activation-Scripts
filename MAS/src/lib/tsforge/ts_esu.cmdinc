@@ -1,0 +1,142 @@
+:ts_esu
+
+if not %_actesu%==1 goto :ts_off
+if /i %tsmethod%==KMS4k (
+call :dk_color %Red% "Skipping Windows ESU                    [KMS4k method is not supported with Windows ESU]"
+if /i %_actmethod%==Auto (
+call :dk_color %Blue% "Connect to the Internet and try again. Script will use the StaticCID activation method."
+) else (
+call :dk_color %Blue% "Use non-KMS4K activation options from the previous menu."
+)
+goto :ts_off
+)
+
+::  Process Windows ESU
+
+echo:
+echo Processing Windows ESU...
+
+set esuexist=
+set esuexistsup=
+set esueditionlist=
+set esuexistbutnosup=
+
+if %winbuild% GTR 14393 for %%# in (EnterpriseS IoTEnterpriseS IoTEnterpriseSK) do (if /i %tsedition%==%%# set isltsc=1)
+if exist "%SystemRoot%\Servicing\Packages\Microsoft-Windows-Server*Edition~*.mum" set isServer=1
+
+if /i %tsedition%==Embedded (
+if exist "%SystemRoot%\Servicing\Packages\WinEmb-Branding-Embedded-ThinPC-Package*.mum" set isThinpc=1
+if exist "%SystemRoot%\Servicing\Packages\WinEmb-Branding-Embedded-POSReady7-Package*.mum" set subEdition=[POS]
+if exist "%SystemRoot%\Servicing\Packages\WinEmb-Branding-Embedded-Standard-Package*.mum" set subEdition=[Standard]
+)
+if not defined allapps call :dk_actids 55c92734-d682-4d71-983e-d6ec3f16059f
+
+set w10EsuEditions=Education-EducationN-Enterprise-EnterpriseN-Professional-ProfessionalEducation-ProfessionalEducationN-ProfessionalN-ProfessionalWorkstation-ProfessionalWorkstationN
+
+set minbuild=0
+if /i %tsedition%==ServerRdsh set minbuild=5552
+for %%# in (Core CoreN CoreCountrySpecific CoreSingleLanguage IoTEnterprise) do (if /i %tsedition%==%%# set minbuild=6156)
+if /i %tsedition%==PPIPro set minbuild=6388
+
+set /a UBR=0
+for /f "skip=2 tokens=2*" %%a in ('reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v UBR %nul6%') do if not errorlevel 1 set /a UBR=%%b
+if %winbuild% EQU 19045 if %minbuild% GTR 0 if %UBR% GEQ %minbuild% (
+set w10EsuEditionsLaterAdded=%tsedition%-
+)
+
+if not defined isThinpc if not defined isltsc for %%# in (
+REM Windows7
+4220f546-f522-46df-8202-4d07afd26454_Client-ESU-Year3[1-3y]_-Enterprise-EnterpriseE-EnterpriseN-Professional-ProfessionalE-ProfessionalN-Ultimate-UltimateE-UltimateN-
+7e94be23-b161-4956-a682-146ab291774c_Client-ESU-Year6[4-6y]_-Enterprise-EnterpriseE-EnterpriseN-Professional-ProfessionalE-ProfessionalN-Ultimate-UltimateE-UltimateN-
+REM Windows7EmbeddedPOSReady7
+4f1f646c-1e66-4908-acc7-d1606229b29e_POS-ESU-Year3[1-3y]_-Embedded[POS]-
+REM Windows7EmbeddedStandard
+6aaf1c7d-527f-4ed5-b908-9fc039dfc654_WES-ESU-Year3[1-3y]_-Embedded[Standard]-
+REM WindowsServer2008/WindowsServer2008R2
+8e7bfb1e-acc1-4f56-abae-b80fce56cd4b_Server-ESU-PA[1-6y]_-ServerDatacenter-ServerDatacenterCore-ServerDatacenterV-ServerDatacenterVCore-ServerStandard-ServerStandardCore-ServerStandardV-ServerStandardVCore-ServerEnterprise-ServerEnterpriseCore-ServerEnterpriseV-ServerEnterpriseVCore-
+REM Windows8.1
+4afc620f-12a4-48ad-8015-2aebfbd6e47c_Client-ESU-Year3[1-3y]_-Enterprise-EnterpriseN-Professional-ProfessionalN-
+11be7019-a309-4763-9a09-091d1722ffe3_Client-FES-ESU-Year3[1-3y]_-EmbeddedIndustry-EmbeddedIndustryE-
+REM WindowsServer2012/2012R2
+55b1dd2d-2209-4ea0-a805-06298bad25b3_Server-ESU-Year3[1-3y]_-ServerDatacenter-ServerDatacenterCore-ServerDatacenterV-ServerDatacenterVCore-ServerStandard-ServerStandardCore-ServerStandardV-ServerStandardVCore-
+1b60284a-63b5-42da-8ec9-eaab825e2bc8_Server-ESU-Year5[4-5y]_-ServerDatacenter-ServerDatacenterCore-ServerDatacenterV-ServerDatacenterVCore-ServerStandard-ServerStandardCore-ServerStandardV-ServerStandardVCore-
+REM Windows10
+f520e45e-7413-4a34-a497-d2765967d094_Client-ESU-Year1_-%w10EsuEditions%-%w10EsuEditionsLaterAdded%
+1043add5-23b1-4afb-9a0f-64343c8f3f8d_Client-ESU-Year2_-%w10EsuEditions%-%w10EsuEditionsLaterAdded%
+83d49986-add3-41d7-ba33-87c7bfb5c0fb_Client-ESU-Year3_-%w10EsuEditions%-%w10EsuEditionsLaterAdded%
+0b533b5e-08b6-44f9-b885-c2de291ba456_Client-ESU-Year6[4-6y]_-%w10EsuEditions%-%w10EsuEditionsLaterAdded%
+REM WindowsServer2016
+91bcac0a-d7d3-4d2b-bd0c-72fed675f01b_Server-ESU-Year3[1-3y]_-ServerDatacenter-ServerDatacenterCore-ServerDatacenterV-ServerDatacenterVCore-ServerStandard-ServerStandardCore-ServerStandardV-ServerStandardVCore-
+4cd0ab30-73a4-4dde-972c-512f05be31df_Server-ESU-Year6[4-6y]_-ServerDatacenter-ServerDatacenterCore-ServerDatacenterV-ServerDatacenterVCore-ServerStandard-ServerStandardCore-ServerStandardV-ServerStandardVCore-
+REM Windows10LTSB2016
+f2571710-2c24-4677-8fb5-a07d41d3c1aa_Client-ESU-Year3[1-3y]_-EnterpriseS-EnterpriseSN-
+22badfe6-7d55-4485-874b-7ec317442134_Client-ESU-Year6[4-6y]_-EnterpriseS-EnterpriseSN-
+) do (
+for /f "tokens=1-3 delims=_" %%A in ("%%#") do (
+echo "%allapps%" | find /i "%%A" %nul1% && (
+set esuexist=1
+echo "%%C" | find /i "-%tsedition%%subEdition%-" %nul1% && (
+set esuexistsup=1
+set esueditionlist=
+set esuexistbutnosup=
+set tsids=!tsids! %%A
+echo Checking Activation ID                  [%%A] [%%B]
+) || (
+if not defined esueditionlist set esueditionlist=%%C
+set esuexistbutnosup=1
+)
+)
+)
+)
+
+if defined esuexistsup if defined _vis (
+set key=9FPV7-MWGT8-7XPDF-JC23W-WT7TW
+REM This is a non-generic blocked MAK key for Server-ESU-PA
+call :dk_inskey "[!key!]"
+goto :ts_off
+)
+
+if defined esuexistsup (
+echo "%tsids%" | find /i "4220f546-f522-46df-8202-4d07afd26454" %nul1% && (
+echo "%tsids%" | find /i "7e94be23-b161-4956-a682-146ab291774c" %nul1% || (
+call :dk_color %Gray% "To get Client-ESU-Year6[4-6y] license, install updates from the below URL."
+call :dk_color %Blue% "%mas%tsforge#windows-esu"
+)
+)
+goto :ts_off
+)
+
+if defined isltsc (
+call :dk_color %Gray% "Checking Activation ID                  [%tsedition% LTSC already has longer support, ESU is not applicable]"
+goto :ts_off
+)
+
+if defined esuexistbutnosup (
+call :dk_color %Red% "Checking Activation ID                  [Currently installed ESU License is not supported for %tsedition%]"
+echo:
+if %winbuild% EQU 19045 if not defined w10EsuEditionsLaterAdded (
+call :dk_color %Blue% "To get latest version, go to Windows settings and run Windows Update. After that, try the script again."
+goto :ts_off
+)
+call :dk_color %Blue% "Go back to Main Menu, select Change Windows Edition option and change to any of the below listed editions."
+echo [%esueditionlist%]
+goto :ts_off
+)
+
+set esuavail=
+if defined _vis if defined isServer set esuavail=1
+if %winbuild% LEQ 7602 if not defined _vis if not defined isThinpc set esuavail=1
+if %winbuild% GTR 7602 if %winbuild% LEQ 14393 if defined isServer set esuavail=1
+if %winbuild% GEQ 10240 if %winbuild% LEQ 19045 if not defined isServer set esuavail=1
+if %winbuild% EQU 9600 set esuavail=1
+
+if defined esuavail (
+call :dk_color %Red% "Checking Activation ID                  [ESU license is not found, make sure Windows is fully updated]"
+set fixes=%fixes% %mas%tsforge#windows-esu
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%tsforge#windows-esu"
+) else (
+call :dk_color %Gray% "Checking Activation ID                  [ESU is not available for %winos%]"
+)
+
+::========================================================================================================================================
+

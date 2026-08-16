@@ -1,0 +1,50 @@
+:oh_installlic
+
+if not defined _oLPath exit /b
+
+if defined _oIntegrator (
+if %oVer%==16 (
+"!_oIntegrator!" /I /License PRIDName=%_License%.16 PidKey=%key% %nul%
+) else (
+"!_oIntegrator!" /I /License PRIDName=%_License% PidKey=%key% %nul%
+)
+call :dk_actids 0ff1ce15-a989-479d-af46-f275c6370663
+echo "!allapps!" | find /i "!_actid!" %nul1% && exit /b
+)
+
+::  Fallback to manual method to install licenses incase integrator.exe is not working
+
+set _License=%_License:XVolume=XC2RVL_%
+
+set _License=%_License:O365EduCloudRetail=O365EduCloudEDUR_%
+
+set _License=%_License:ProjectProRetail=ProjectProO365R_%
+set _License=%_License:ProjectStdRetail=ProjectStdO365R_%
+set _License=%_License:VisioProRetail=VisioProO365R_%
+set _License=%_License:VisioStdRetail=VisioStdO365R_%
+
+if defined _preview set _License=%_License:Volume=PreviewVL_%
+
+set _License=%_License:Retail=R_%
+set _License=%_License:Volume=VL_%
+
+for %%# in ("!_oLPath!\client-issuance-*.xrm-ms") do (
+if defined _arr (set "_arr=!_arr!;"!_oLPath!\%%~nx#"") else (set "_arr="!_oLPath!\%%~nx#"")
+)
+
+for %%# in ("!_oLPath!\%_License%*.xrm-ms") do (
+if defined _arr (set "_arr=!_arr!;"!_oLPath!\%%~nx#"") else (set "_arr="!_oLPath!\%%~nx#"")
+)
+
+%psc% "$sls = Get-WmiObject %sps%; $f=[IO.File]::ReadAllText('!_batp!') -split ':xrm\:.*';. ([scriptblock]::Create($f[1])); InstallLicenseArr '!_arr!'; InstallLicenseFile '"!_oLPath!\pkeyconfig-office.xrm-ms"'" %nul%
+
+call :dk_actids 0ff1ce15-a989-479d-af46-f275c6370663
+echo "!allapps!" | find /i "!_actid!" %nul1% || (
+set error=1
+call :dk_color %Red% "Installing Missing License Files        [Office %oVer%.0 %_prod%] [Failed]"
+)
+
+exit /b
+
+::========================================================================================================================================
+

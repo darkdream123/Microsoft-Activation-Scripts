@@ -1,0 +1,10 @@
+:dk_actid
+
+set apps=
+if %_wmic% EQU 1 set "chkapp=for /f "tokens=2 delims==" %%a in ('"wmic path %spp% where (ApplicationID='%1' and PartialProductKey is not null) get ID /VALUE" %nul6%')"
+if %_wmic% EQU 0 set "chkapp=for /f "tokens=2 delims==" %%a in ('%psc% "(([WMISEARCHER]'SELECT ID FROM %spp% WHERE ApplicationID=''%1'' AND PartialProductKey IS NOT NULL').Get()).ID ^| %% {echo ('ID='+$_)}" %nul6%')"
+%chkapp% do (if defined apps (call set "apps=!apps! %%a") else (call set "apps=%%a"))
+exit /b
+
+::  Trigger reevaluation, it helps in updating SPP tasks
+

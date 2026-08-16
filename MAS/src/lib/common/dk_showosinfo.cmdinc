@@ -1,0 +1,18 @@
+:dk_showosinfo
+
+for /f "skip=2 tokens=2*" %%a in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v PROCESSOR_ARCHITECTURE') do set osarch=%%b
+
+for /f "tokens=6-7 delims=[]. " %%i in ('ver') do if not "%%j"=="" (
+set fullbuild=%%i.%%j
+) else (
+for /f "tokens=3" %%G in ('"reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v UBR" %nul6%') do if not errorlevel 1 set /a "UBR=%%G"
+for /f "skip=2 tokens=3,4 delims=. " %%G in ('reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v BuildLabEx') do (
+if defined UBR (set "fullbuild=%%G.!UBR!") else (set "fullbuild=%%G.%%H")
+)
+)
+
+echo Checking OS Info                        [%winos% ^| %fullbuild% ^| %osarch%]
+exit /b
+
+::  Check SKU value
+

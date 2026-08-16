@@ -1,0 +1,20 @@
+:registerobj
+
+::  https://eskonr.com/2012/01/how-to-fix-wmi-issues-automatically/
+
+%psc% Stop-Service Winmgmt -force %nul%
+cd /d %SysPath%\wbem\
+regsvr32 /s %SysPath%\scecli.dll
+regsvr32 /s %SysPath%\userenv.dll
+mofcomp cimwin32.mof
+mofcomp cimwin32.mfl
+mofcomp rsop.mof
+mofcomp rsop.mfl
+for /f %%s in ('dir /b /s *.dll') do regsvr32 /s %%s
+for /f %%s in ('dir /b *.mof') do mofcomp %%s
+for /f %%s in ('dir /b *.mfl') do mofcomp %%s
+
+winmgmt /salvagerepository
+winmgmt /resetrepository
+exit /b
+

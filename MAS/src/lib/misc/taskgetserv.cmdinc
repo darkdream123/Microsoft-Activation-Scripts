@@ -1,0 +1,22 @@
+:_taskgetserv
+
+if %server_num% geq %max_servers% (set /a server_num+=1&set KMS_IP=222.184.9.98&exit /b)
+set /a rand=%Random%%%(15+1-1)+1
+if defined !server%rand%! goto :_taskgetserv
+set KMS_IP=!server%rand%!
+set !server%rand%!=1
+
+::  Get IPv4 address of K-M-S server to use for the activation, works even if ICMP echo is disabled.
+::  Microsoft and Antivirus's may flag the issue if public K-M-S server host name is directly used for the activation.
+
+set /a server_num+=1
+(for /f "delims=[] tokens=2" %%a in ('ping -4 -n 1 %KMS_IP% 2^>nul') do set "KMS_IP=%%a"
+if "%KMS_IP%"=="!KMS_IP!" for /f "delims=[] tokens=2" %%# in ('pathping -4 -h 1 -n -p 1 -q 1 -w 1 %KMS_IP% 2^>nul') do set "KMS_IP=%%#"
+if not "%KMS_IP%"=="!KMS_IP!" exit /b
+goto :_taskgetserv
+)
+::Ver:2.7
+:_extracttask:
+
+::========================================================================================================================================
+

@@ -1,0 +1,20 @@
+:oh_setspp
+
+set isOspp=
+if %winbuild% GEQ 9200 (
+set spp=SoftwareLicensingProduct
+set sps=SoftwareLicensingService
+) else (
+set isOspp=1
+set spp=OfficeSoftwareProtectionProduct
+set sps=OfficeSoftwareProtectionService
+)
+if "%1"=="14" (
+set isOspp=1
+set spp=OfficeSoftwareProtectionProduct
+set sps=OfficeSoftwareProtectionService
+)
+exit /b
+
+::========================================================================================================================================
+

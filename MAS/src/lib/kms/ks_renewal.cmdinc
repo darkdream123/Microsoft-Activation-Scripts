@@ -1,0 +1,57 @@
+:ks_renewal
+
+set error_=
+set "_dest=%ProgramFiles%\Activation-Renewal"
+set "key=HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\taskcache\tasks"
+
+call :ks_clearstuff %nul%
+
+if defined error_ (
+set error=1
+call :dk_color %Red% "Failed to remove previous Renewal Task. Restart system / Try again."
+exit /b
+)
+
+if not exist "%_dest%\" md "%_dest%\" %nul%
+for /f %%G in ('%psc% "[Guid]::NewGuid().Guid"') do set "randguid=%%G"
+set "_temp=%SystemRoot%\Temp\%Random%%randguid%"
+
+set nil=
+if %winbuild% LSS 7600 (set _vista=_vista)
+if exist "%_temp%\.*" rmdir /s /q "%_temp%\" %nul%
+md "%_temp%\" %nul%
+call :ks_RenExport renewal%_vista% "%_temp%\Renewal.xml" Unicode
+if not defined _int (call :ks_RenExport run_once%_vista% "%_temp%\Run_Once.xml" Unicode)
+s%nil%cht%nil%asks /cre%nil%ate /tn "Activation-Renewal" /ru "SYS%nil%TEM" /xml "%_temp%\Renewal.xml" %nul%
+if not defined _int (s%nil%cht%nil%asks /cre%nil%ate /tn "Activation-Run_Once" /ru "SYS%nil%TEM" /xml "%_temp%\Run_Once.xml" %nul%)
+if exist "%_temp%\.*" rmdir /s /q "%_temp%\" %nul%
+
+call :ks_createInfo.txt
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split \":_extracttask\:.*`r`n\"; [io.file]::WriteAllText('%_dest%\Activation_task.cmd', '@::%randguid%' + [Environment]::NewLine + $f[1].Trim(), [System.Text.Encoding]::ASCII)"
+
+::========================================================================================================================================
+
+reg query "%key%" /f Path /s | find /i "\Activation-Renewal" >nul || (set error_=1)
+if not defined _int reg query "%key%" /f Path /s | find /i "\Activation-Run_Once" >nul || (set error_=1)
+
+If not exist "%_dest%\Activation_task.cmd" (set error_=1)
+If not exist "%_dest%\Info.txt" (set error_=1)
+
+if defined error_ (
+schtasks /delete /tn Activation-Renewal /f %nul%
+schtasks /delete /tn Activation-Run_Once /f %nul%
+rmdir /s /q "%_dest%\" %nul%
+set error=1
+call :dk_color %Red% "Failed to install Renewal Task. Restart system / Try again."
+exit /b
+)
+
+if "%keyerror%"=="0" if not defined _tserror (
+call :dk_color %Green% "Renewal Task for lifetime activation is successfully installed in %_dest%"
+exit /b
+)
+echo Renewal Task for lifetime activation is successfully installed in %_dest%
+exit /b
+
+::  Extract the text from batch script without character and file encoding issue
+

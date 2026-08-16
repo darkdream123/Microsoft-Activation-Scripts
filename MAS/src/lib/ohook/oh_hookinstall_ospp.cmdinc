@@ -1,0 +1,81 @@
+:oh_hookinstall_ospp
+
+set ierror=
+set hasherror=
+
+if defined _hook86 set offset86=2564
+if defined _hook68 set offset68=3076
+
+::======================================
+
+::  Remove previous Install
+
+for %%# in (OSPPC.DLL sppcs.dll) do (
+for %%A in ("%_osppPath68%\%%#" "%_osppPath86%\%%#") do (
+set size=0
+set size=%%~zA
+if !size! GEQ 1 if !size! LSS 100000 (
+del /f /q "%%~A" %nul%
+if exist "%%~A" (move /y "%%~A" "!_ttemp!\needsToBeDeleted%random%" %nul%)
+if exist "%%~A" (set "ierror=Remove Previous Ohook Install [%%#]")
+)
+)
+)
+
+if defined ierror goto :oh_hookinstall_error
+
+for %%A in ("%_osppPath68%" "%_osppPath86%") do (
+if exist "%%~A\sppcs.dll" (move /y "%%~A\sppcs.dll" "%%~A\OSPPC.DLL" %nul%)
+if exist "%%~A\sppcs.dll" (
+move /y "%%~A\OSPPC.DLL" "!_ttemp!\needsToBeDeleted%random%" %nul%
+move /y "%%~A\sppcs.dll" "%%~A\OSPPC.DLL" %nul%
+)
+if exist "%%~A\sppcs.dll" (set "ierror=Move sppcs.dll back to OSPPC.DLL")
+)
+
+del /f /q "%_hookPath%\sppcs.dll" %nul%
+if exist "%_hookPath%\sppcs.dll" (move /y "%_hookPath%\sppcs.dll" "!_ttemp!\needsToBeDeleted%random%" %nul%)
+if exist "%_hookPath%\sppcs.dll" (set "ierror=Remove Previous Ohook mklink sppcs.dll")
+
+if defined ierror goto :oh_hookinstall_error
+
+::======================================
+
+if defined _osppPath68 (move /y "%_osppPath68%\OSPPC.DLL" "%_osppPath68%\sppcs.dll" %nul% & if not exist "%_osppPath68%\sppcs.dll" set ierror=1)
+if defined _osppPath86 (move /y "%_osppPath86%\OSPPC.DLL" "%_osppPath86%\sppcs.dll" %nul% & if not exist "%_osppPath86%\sppcs.dll" set ierror=1)
+
+if defined ierror (
+set "ierror=Rename OSPPC.DLL"
+goto :oh_hookinstall_error
+)
+
+if defined _osppPath68 if defined _osppPath86     (mklink "%_hookPath%\sppcs.dll" "%_osppPath86%\sppcs.dll" %nul%)
+if defined _osppPath68 if not defined _osppPath86 (mklink "%_hookPath%\sppcs.dll" "%_osppPath68%\sppcs.dll" %nul%)
+if defined _osppPath86 if not defined _osppPath68 (mklink "%_hookPath%\sppcs.dll" "%_osppPath86%\sppcs.dll" %nul%)
+
+if not exist "%_hookPath%\sppcs.dll" (
+set ierror=mklink sppcs.dll
+goto :oh_hookinstall_error
+)
+
+if defined _osppPath68 (set _hook=%_hook68%&call :oh_extractdll "%_osppPath68%\OSPPC.DLL" "%offset68%")
+if defined _osppPath86 (set _hook=%_hook86%&call :oh_extractdll "%_osppPath86%\OSPPC.DLL" "%offset86%")
+
+if defined _osppPath68 (if not exist "%_osppPath68%\OSPPC.DLL" set ierror=1)
+if defined _osppPath86 (if not exist "%_osppPath86%\OSPPC.DLL" set ierror=1)
+
+if defined ierror (
+set ierror=Copy
+goto :oh_hookinstall_error
+)
+
+echo:
+if defined _osppPath68 (echo Renaming OSPPC.DLL to sppcs.dll         ["%_osppPath68%\sppcs.dll"])
+if defined _osppPath86 (echo Renaming OSPPC.DLL to sppcs.dll         ["%_osppPath86%\sppcs.dll"])
+if defined _osppPath68 (echo Extracting Custom %_hook68% to         ["%_osppPath68%\OSPPC.DLL"])
+if defined _osppPath86 (echo Extracting Custom %_hook86% to         ["%_osppPath86%\OSPPC.DLL"])
+
+echo Symlinking Renamed sppcs.dll            ["%_hookPath%\sppcs.dll"]
+
+::========================================================================================================================================
+

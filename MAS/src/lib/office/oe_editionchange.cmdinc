@@ -1,0 +1,65 @@
+:oe_editionchange
+
+cls
+if not defined terminal (
+mode 98, 45
+%psc% "&{$W=$Host.UI.RawUI.WindowSize;$B=$Host.UI.RawUI.BufferSize;$W.Height=44;$B.Height=100;$Host.UI.RawUI.WindowSize=$W;$Host.UI.RawUI.BufferSize=$B;}" %nul%
+)
+
+if not exist %SystemRoot%\Temp\%o_randguid%\%list%.txt (
+%eline%
+echo Failed to generate available editions list.
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+goto :oe_goback
+)
+
+set inpt=
+set counter=0
+set verified=0
+set _notfound=
+set targetedition=
+
+%line%
+echo:
+call :dk_color %Gray% "Installed Office editions: %_oIds%"
+call :dk_color %Gray% "You can select one of the following Office Editions."
+if %winbuild% LSS 10240 (
+echo Unsupported products such as 2019/2021/2024 are excluded from this list.
+) else (
+for %%# in (2019 2021 2024) do (
+find /i "%%#" "%SystemRoot%\Temp\%o_randguid%\%list%.txt" %nul1% || (
+if defined _notfound (set _notfound=%%#, !_notfound!) else (set _notfound=%%#)
+)
+)
+if defined _notfound call :dk_color %Gray% "Office !_notfound! is not in this list because old version [%_version%] of Office is installed."
+)
+%line%
+echo:
+
+for /f "usebackq delims=" %%A in (%SystemRoot%\Temp\%o_randguid%\%list%.txt) do (
+set /a counter+=1
+if !counter! LSS 10 (
+echo [!counter!]  %%A
+) else (
+echo [!counter!] %%A
+)
+set targetedition!counter!=%%A
+)
+
+%line%
+echo:
+echo [0]  Go Back
+echo:
+call :dk_color %_Green% "Enter an option number using your keyboard and press Enter to confirm:"
+set /p inpt=
+if "%inpt%"=="" goto :oe_editionchange
+if "%inpt%"=="0" (call :oe_tempcleanup & goto :oe_edition)
+for /l %%i in (1,1,%counter%) do (if "%inpt%"=="%%i" set verified=1)
+set targetedition=!targetedition%inpt%!
+if %verified%==0 goto :oe_editionchange
+
+::========================================================================================================================================
+
+::  Set app exclusions
+

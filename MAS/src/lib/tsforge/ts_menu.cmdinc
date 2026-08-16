@@ -1,0 +1,63 @@
+:ts_menu
+
+if %_unattended%==0 (
+cls
+if not defined terminal mode 76, 33
+title  TSforge Activation %masver%
+
+echo:
+echo:
+echo:
+echo        ______________________________________________________________
+echo: 
+echo               [1] Activate - Windows
+echo               [2] Activate - ESU
+echo               [3] Activate - Office [All]
+echo               [4] Activate - Office [Project/Visio]
+echo               [5] Activate - All
+echo               _______________________________________________  
+echo: 
+echo                   Advanced Options:
+echo:
+echo               [A] Activate - Windows %KS% Host
+echo               [B] Activate - Office %KS% Host
+echo               [C] Activate - Windows 8/8.1 APPX Sideloading
+echo               [D] Activate - Manually Select Products
+if defined _vis (
+echo               [E] Reset    - Rearm/Timers
+) else (
+echo               [E] Reset    - Rearm/Timers/Tamper/Lock
+)
+echo               [F] Change   - Activation Method [%_actmethod%]
+echo               _______________________________________________       
+echo:
+echo               [6] Remove TSforge Activation
+echo               [7] Download Office
+echo               [0] %_exitmsg%
+echo        ______________________________________________________________
+echo:
+call :dk_color2 %_White% "            " %_Green% "Choose a menu option using your keyboard..."
+choice /C:12345ABCDEF670 /N
+set _el=!errorlevel!
+
+if !_el!==14 exit /b
+if !_el!==13 start %mas%genuine-installation-media & goto :ts_menu
+if !_el!==12 call :ts_remove & cls & goto :ts_menu
+if !_el!==11 goto :ts_changemethod
+if !_el!==10 cls & setlocal & set "_resall=1"       & call :ts_start & endlocal & cls & goto :ts_menu
+if !_el!==9  cls & setlocal & set "_actman=1"       & call :ts_start & endlocal & cls & goto :ts_menu
+if !_el!==8  cls & setlocal & set "_actappx=1"      & call :ts_start & endlocal & cls & goto :ts_menu
+if !_el!==7  cls & setlocal & set "_actoffhost=1"   & call :ts_start & endlocal & cls & goto :ts_menu
+if !_el!==6  cls & setlocal & set "_actwinhost=1"   & call :ts_start & endlocal & cls & goto :ts_menu
+if !_el!==5  cls & setlocal & set "_actwinesuoff=1" & call :ts_start & endlocal & cls & goto :ts_menu
+if !_el!==4  cls & setlocal & set "_actprojvis=1"   & call :ts_start & endlocal & cls & goto :ts_menu
+if !_el!==3  cls & setlocal & set "_actoff=1"       & call :ts_start & endlocal & cls & goto :ts_menu
+if !_el!==2  cls & setlocal & set "_actesu=1"       & call :ts_start & endlocal & cls & goto :ts_menu
+if !_el!==1  cls & setlocal & set "_actwin=1"       & call :ts_start & endlocal & cls & goto :ts_menu
+goto :ts_menu
+)
+
+goto :ts_start
+
+::========================================================================================================================================
+
