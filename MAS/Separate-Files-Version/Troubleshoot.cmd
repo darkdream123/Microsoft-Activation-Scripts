@@ -494,6 +494,7 @@ echo:
 echo Applying the command...
 echo dism /english /online /cleanup-image /restorehealth
 dism /english /online /cleanup-image /restorehealth
+set _dismerror=%errorlevel%
 
 timeout /t 5 %nul1%
 copy /y /b "%SystemRoot%\logs\cbs\cbs.log" "%SystemRoot%\logs\cbs\cbs_%_time%.log" %nul%
@@ -509,6 +510,12 @@ copy /y /b "%SystemRoot%\logs\cbs\cbs.log" "!desktop!\AT_Logs\RHealth_CBS_%_time
 
 if not exist "!desktop!\AT_Logs\RHealth_DISM_%_time%.cab" (
 copy /y /b "%SystemRoot%\logs\DISM\dism.log" "!desktop!\AT_Logs\RHealth_DISM_%_time%.log" %nul%
+)
+
+if %_dismerror% NEQ 0 if %_dismerror% NEQ 3010 (
+echo:
+call :dk_color %Red% "DISM failed with error code %_dismerror%."
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
 )
 
 echo:
@@ -551,6 +558,7 @@ echo:
 echo Applying the command...
 echo sfc /scannow
 sfc /scannow
+set _sfcerror=%errorlevel%
 
 timeout /t 5 %nul1%
 copy /y /b "%SystemRoot%\logs\cbs\cbs.log" "%SystemRoot%\logs\cbs\cbs_%_time%.log" %nul%
@@ -560,6 +568,12 @@ call :compresslog cbs\cbs_%_time%.log AT_Logs\SFC_CBS %nul%
 
 if not exist "!desktop!\AT_Logs\SFC_CBS_%_time%.cab" (
 copy /y /b "%SystemRoot%\logs\cbs\cbs.log" "!desktop!\AT_Logs\SFC_CBS_%_time%.log" %nul%
+)
+
+if %_sfcerror% NEQ 0 (
+echo:
+call :dk_color %Red% "SFC failed with error code %_sfcerror%."
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
 )
 
 echo:
@@ -1208,6 +1222,11 @@ goto :at_back
 echo:
 echo Registering .dll's and Compiling .mof's, .mfl's
 call :registerobj %nul%
+if defined _regobjdir (
+call :dk_color %Red% "[Unable to access %SysPath%\wbem]"
+) else if !_regobjfail! NEQ 0 (
+call :dk_color %Red% "[!_regobjfail! component(s) failed to register]"
+)
 
 echo:
 echo Checking WMI
@@ -1226,14 +1245,17 @@ goto :at_back
 
 ::  https://eskonr.com/2012/01/how-to-fix-wmi-issues-automatically/
 
+set _regobjdir=
+set _regobjfail=0
+
 %psc% Stop-Service Winmgmt -force %nul%
-cd /d %SysPath%\wbem\
-regsvr32 /s %SysPath%\scecli.dll
-regsvr32 /s %SysPath%\userenv.dll
-mofcomp cimwin32.mof
-mofcomp cimwin32.mfl
-mofcomp rsop.mof
-mofcomp rsop.mfl
+cd /d %SysPath%\wbem\ || (set _regobjdir=1& exit /b)
+regsvr32 /s %SysPath%\scecli.dll || set /a _regobjfail+=1
+regsvr32 /s %SysPath%\userenv.dll || set /a _regobjfail+=1
+mofcomp cimwin32.mof || set /a _regobjfail+=1
+mofcomp cimwin32.mfl || set /a _regobjfail+=1
+mofcomp rsop.mof || set /a _regobjfail+=1
+mofcomp rsop.mfl || set /a _regobjfail+=1
 for /f %%s in ('dir /b /s *.dll') do regsvr32 /s %%s
 for /f %%s in ('dir /b *.mof') do mofcomp %%s
 for /f %%s in ('dir /b *.mfl') do mofcomp %%s

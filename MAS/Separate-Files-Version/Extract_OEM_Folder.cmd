@@ -387,7 +387,7 @@ if not defined desktop for /f "delims=" %%a in ('%psc% "& {write-host $([Environ
 set "_pdesk=%desktop:'=''%"
 set "_dir=%desktop%\$OEM$\$$\Setup\Scripts"
 
-if exist "!desktop!\" (
+if not defined desktop (
 %eline%
 echo Unable to detect Desktop location, aborting...
 goto done2

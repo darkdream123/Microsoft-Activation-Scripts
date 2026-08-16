@@ -846,7 +846,7 @@ for %%# in (OSPPC.DLL sppcs.dll) do (
 for %%A in ("%CommonProgramFiles%" "%CommonProgramW6432%" "%CommonProgramFiles(x86)%") do (
 for %%G in ("%%~A\Microsoft Shared\OfficeSoftwareProtectionPlatform\%%#") do (
 set size=0
-set size=%%~zG
+if exist "%%~G" set size=%%~zG
 if !size! GEQ 1 if !size! LSS 100000 (
 set _present=1
 del /f /q "%%~G"
@@ -1189,7 +1189,7 @@ if defined _hook68 set offset68=3076
 for %%# in (OSPPC.DLL sppcs.dll) do (
 for %%A in ("%_osppPath68%\%%#" "%_osppPath86%\%%#") do (
 set size=0
-set size=%%~zA
+if exist "%%~A" set size=%%~zA
 if !size! GEQ 1 if !size! LSS 100000 (
 del /f /q "%%~A" %nul%
 if exist "%%~A" (move /y "%%~A" "!_ttemp!\needsToBeDeleted%random%" %nul%)
