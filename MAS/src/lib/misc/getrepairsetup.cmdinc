@@ -1,0 +1,11 @@
+:getrepairsetup
+
+set "_common86=%systemdrive%\Program Files (x86)\Common Files\Microsoft Shared\OFFICE%2\Office Setup Controller\setup.exe"
+set "_common68=%systemdrive%\Program Files\Common Files\Microsoft Shared\OFFICE%2\Office Setup Controller\setup.exe"
+
+if exist "%_common86%" set "%1=%_common86%"
+if exist "%_common68%" set "%1=%_common68%"
+exit /b
+
+::========================================================================================================================================
+

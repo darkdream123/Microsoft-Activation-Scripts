@@ -1,0 +1,44 @@
+:oe_excludeappspre
+
+cls
+set suites=
+echo %list% | find /i "Suites" %nul1% && (
+set suites=1
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':getappnames\:.*';. ([scriptblock]::Create($f[1]))"
+if not exist %SystemRoot%\Temp\%o_randguid%\getAppIds.txt (
+%eline%
+echo Failed to generate available apps list.
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+goto :oe_goback
+)
+)
+
+for %%# in (
+Access
+Excel
+Lync
+OneNote
+Outlook
+PowerPoint
+Project
+Publisher
+Visio
+Word
+) do (
+if defined suites (
+find /i "%%#" "%SystemRoot%\Temp\%o_randguid%\getAppIds.txt" %nul1% && (set %%#_st=On) || (set %%#_st=)
+) else (
+set %%#_st=
+)
+)
+
+if defined Lync_st set Lync_st=Off
+set OneDrive_st=Off
+if defined suites (set Teams_st=Off) else (set Teams_st=)
+
+set OutlookForWindows_st=
+if %winbuild% GEQ 19041 if defined Outlook_st echo %targetedition% | find /i "O365" %nul1% && (
+set OutlookForWindows_st=Off
+)
+

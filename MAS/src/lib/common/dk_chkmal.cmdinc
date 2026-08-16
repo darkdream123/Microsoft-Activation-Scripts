@@ -1,0 +1,43 @@
+:dk_chkmal
+
+::  Many users unknowingly download mal-ware by using activators found through Google search.
+::  This code aims to notify users that their system has been affected by mal-ware.
+
+set w=
+set results=
+if exist "%ProgramFiles%\KM%w%Spico" set pupfound= KM%w%Spico 
+if not defined pupfound (
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\taskcache\tasks" /f Path /s | find /i "AutoPico" %nul% && set pupfound= KM%w%Spico 
+)
+
+set hcount=0
+for %%# in (avira.com kaspersky.com virustotal.com mcafee.com) do (
+find /i "%%#" %SysPath%\drivers\etc\hosts %nul% && set /a hcount+=1)
+if %hcount%==4 set "results=Antivirus URLs blocked in hosts file"
+
+sc start %_slser% %nul%
+echo "%errorlevel%" | findstr "577 225" %nul% && (
+set "results=%results%Likely File Infector"
+) || (
+if not exist %SysPath%\%_slexe% if not exist %SysPath%\alg.exe (set "results=%results%[Likely File Infector]")
+)
+
+if not "%results%%pupfound%"=="" (
+if defined pupfound call :dk_color %Gray% "Checking PUP Activators                 [%pupfound%]"
+if defined results call :dk_color %Red% "Checking for Mal%w%ware Infection...     [%results%]"
+call :dk_color %Gray% "It is highly likely that your Windows install is infected with mal%w%ware. Windows cannot be activated."
+set fixes=%fixes% %mas%remove_mal%w%ware
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%remove_mal%w%ware"
+echo:
+)
+
+::  Remove the scheduled task of R@1n-KMS (old version) that runs the activation command every minute, as it leads to high CPU usage.
+
+if exist %SysPath%\Tasks\R@1n-KMS (
+for /f %%A in ('dir /b /a:-d %SysPath%\Tasks\R@1n-KMS %nul6%') do (schtasks /delete /tn \R@1n-KMS\%%A /f %nul%)
+)
+
+exit /b
+
+::========================================================================================================================================
+

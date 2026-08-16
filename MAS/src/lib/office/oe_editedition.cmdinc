@@ -1,0 +1,60 @@
+:oe_editedition
+
+cls
+title  Add/Remove Apps %masver%
+
+call :oe_chkinternet
+if not defined _int (
+goto :oe_goback
+)
+
+set change=0
+set editedition=1
+call :ch_getinfo
+cls
+
+if not defined terminal (
+mode 98, 35
+)
+
+set inpt=
+set counter=0
+set verified=0
+set targetedition=
+
+%line%
+echo:
+call :dk_color %Gray% "You can edit [add/remove apps] one of the following Office editions."
+%line%
+echo:
+
+for %%A in (%_oIds%) do (
+set /a counter+=1
+echo [!counter!] %%A
+set targetedition!counter!=%%A
+)
+
+%line%
+echo:
+echo [0]  Go Back
+echo:
+call :dk_color %_Green% "Enter an option number using your keyboard and press Enter to confirm:"
+set /p inpt=
+if "%inpt%"=="" goto :oe_editedition
+if "%inpt%"=="0" goto :oemenu
+for /l %%i in (1,1,%counter%) do (if "%inpt%"=="%%i" set verified=1)
+set targetedition=!targetedition%inpt%!
+if %verified%==0 goto :oe_editedition
+
+::===============
+
+cls
+if not defined terminal mode 98, 32
+
+echo %targetedition% | findstr /i "Access Excel OneNote Outlook PowerPoint Project Publisher Skype Visio Word" %nul% && (set list=SingleApps) || (set list=Suites)
+goto :oe_excludeappspre
+
+::========================================================================================================================================
+
+::  Remove Office editions
+

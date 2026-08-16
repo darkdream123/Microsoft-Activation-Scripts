@@ -1,0 +1,9 @@
+:getc2rrepair
+
+for %%# in (X86 X64) do (
+if exist "%systemdrive%\Program Files\Microsoft Office 15\Client%%#\%2" (
+set "%1=%systemdrive%\Program Files\Microsoft Office 15\Client%%#\%2"
+)
+)
+exit /b
+

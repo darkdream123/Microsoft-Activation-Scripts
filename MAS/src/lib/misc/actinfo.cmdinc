@@ -1,0 +1,93 @@
+:_actinfo
+
+if "%1"=="act_win" if not defined t_name (set prodname=%winos%)
+
+if "%1"=="act_win" if %_kms38% EQU 1 (
+if defined t_name (
+echo %prodname% is already activated with KMS38.
+) else (
+call :dk_color %Green% "%prodname% is already activated with KMS38."
+)
+exit /b
+)
+
+if %errorcode% EQU 12345 (
+if defined t_name (
+echo %prodname% activation failed due to restricted or no Internet.
+) else (
+call :dk_color %Red% "%prodname% activation failed due to restricted or no Internet."
+)
+set showfix=1
+set _tserror=1
+exit /b
+)
+
+if %errorcode% EQU -1073418187 if "%1"=="act_win" if %winbuild% LSS 9200 (
+if defined t_name (
+echo %prodname% cannot be KMS-activated on this computer due to unqualified OEM BIOS [0xC004F035].
+) else (
+call :dk_color %Red% "%prodname% cannot be KMS-activated on this computer due to unqualified OEM BIOS [0xC004F035]."
+call :dk_color %Blue% "Use TSforge activation option from the main menu."
+)
+set oemerr=1
+set showfix=1
+exit /b
+)
+
+if %errorcode% EQU -1073418124 (
+if defined t_name (
+echo %prodname% activation failed due to Internet issue [0xC004F074].
+) else (
+call :dk_color %Red% "%prodname% activation failed due to Internet issue [0xC004F074]."
+if not defined _tserror (
+call :dk_color %Blue% "Make sure that system files are not blocked by firewall."
+call :dk_color %Blue% "If the issue persists, try another Internet connection or VPN such as https://1.1.1.1"
+)
+)
+set showfix=1
+set _tserror=1
+exit /b
+)
+
+
+set gpr=0
+set gpr2=0
+call :_taskgetgrace
+set /a "gpr2=(%gpr%+1440-1)/1440"
+
+if %errorcode% EQU 0 if %gpr% EQU 0 (
+if defined t_name (
+echo %prodname% activation succeeded, but Remaining Period failed to increase.
+) else (
+call :dk_color %Red% "%prodname% activation succeeded, but Remaining Period failed to increase."
+)
+set _tserror=1
+exit /b
+)
+
+set _actpass=1
+if %gpr% EQU 43200  if "%1"=="act_win" if %winbuild% GEQ 9200 set _actpass=0
+if %gpr% EQU 64800  set _actpass=0
+if %gpr% GTR 259200 if "%1"=="act_win" call :_taskchkEnterpriseG _actpass
+if %gpr% EQU 259200 set _actpass=0
+
+if %errorcode% EQU 0 if %_actpass% EQU 0 (
+if defined t_name (
+echo %prodname% is successfully activated for %gpr2% days.
+) else (
+call :dk_color %Green% "%prodname% is successfully activated for %gpr2% days."
+)
+exit /b
+)
+
+cmd /c exit /b %errorcode%
+if defined t_name (
+echo %prodname% has failed to activate [0x!=ExitCode!]. Remaining Period: %gpr2% days [%gpr% minutes].
+) else (
+call :dk_color %Red% "%prodname% has failed to activate [0x!=ExitCode!]. Remaining Period: %gpr2% days [%gpr% minutes]."
+)
+set _tserror=1
+exit /b
+
+::========================================================================================================================================
+

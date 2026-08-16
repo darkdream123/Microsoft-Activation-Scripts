@@ -1,0 +1,46 @@
+:oh_ppcpath
+
+if not defined isOspp (
+if not "%osarch%"=="x86" (
+if /i "%_oArch%"=="x64" set "_sppcPath=%SystemRoot%\System32\sppc.dll"
+if /i "%_oArch%"=="x86" set "_sppcPath=%SystemRoot%\SysWOW64\sppc.dll"
+) else (
+set "_sppcPath=%SystemRoot%\System32\sppc.dll"
+)
+)
+
+set noOsppc=
+set _hook68=
+set _hook86=
+set _osppPath68=
+set _osppPath86=
+
+if defined isOspp (
+if not "%osarch%"=="x86" (
+if /i "%_oArch%"=="x64" (
+for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\OfficeSoftwareProtectionPlatform /v Path" %nul6%') do (set "_osppPath68=%%b")
+if not exist "!_osppPath68!OSPPC.DLL" set noOsppc=1
+)
+if /i "%_oArch%"=="x86" (
+for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\OfficeSoftwareProtectionPlatform /v Path" %nul6%') do (set "_osppPath68=%%b")
+for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Wow6432Node\Microsoft\OfficeSoftwareProtectionPlatform /v Path" %nul6%') do (set "_osppPath86=%%b")
+if not exist "!_osppPath68!OSPPC.DLL" set noOsppc=1
+if not exist "!_osppPath86!OSPPC.DLL" set noOsppc=1
+)
+) else (
+for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\OfficeSoftwareProtectionPlatform /v Path" %nul6%') do (set "_osppPath86=%%b")
+if not exist "!_osppPath86!OSPPC.DLL" set noOsppc=1
+)
+if "!_osppPath68:~-1!"=="\" set "_osppPath68=!_osppPath68:~0,-1!"
+if "!_osppPath86:~-1!"=="\" set "_osppPath86=!_osppPath86:~0,-1!"
+)
+
+if defined _osppPath68 set _hook68=sppc64.dll
+if defined _osppPath86 set _hook86=sppc32.dll
+
+exit /b
+
+::========================================================================================================================================
+
+::  Some Office Retail to Volume converter tools may edit the ProductReleaseIds to add VL products. This code restores it because it may affect features.
+

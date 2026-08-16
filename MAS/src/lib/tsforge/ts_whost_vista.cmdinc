@@ -1,0 +1,47 @@
+:ts_whost_vista
+
+::  Process Windows K-M-S host for Vista
+
+::  1st column = Activation ID
+::  2nd column = CSVLK key
+::  3rd column = Edition IDs
+::  Separator  = _
+
+set f=
+set key=
+set tempid=
+if not defined allapps call :dk_actids 55c92734-d682-4d71-983e-d6ec3f16059f
+
+for %%# in (
+::  WindowsVista
+212a64dc-43b1-4d3d-a30c-2fc69d2095c6_TWVG3-9Q4P8-W9XJF-Y76FJ-DW%f%Q4R_-Business-BusinessN-Enterprise-EnterpriseN-
+::  WindowsServer2008
+c90d1b4e-8aa8-439e-8b9e-b6d6b6a6d975_BHC4Q-6D7B7-QMVH7-4MKQH-Y9%f%VK7_-ServerComputeCluster-ServerDatacenter-ServerDatacenterV-ServerEnterprise-ServerEnterpriseIA64-ServerEnterpriseV-ServerStandard-ServerStandardV-ServerWeb-
+56df4151-1f9f-41bf-acaa-2941c071872b_PVGKG-2R7XQ-7WTFD-FXTJR-DQ%f%BQ3_-ServerComputeCluster-ServerEnterprise-ServerEnterpriseV-ServerStandard-ServerStandardV-ServerWeb-
+c448fa06-49d1-44ec-82bb-0085545c3b51_KH4PC-KJFX6-XFVHQ-GDK2G-JC%f%JY9_-ServerComputeCluster-ServerWeb-
+) do (
+for /f "tokens=1-3 delims=_" %%A in ("%%#") do if not defined key (
+echo "%allapps%" | find /i "%%A" %nul1% && (
+echo "%%C" | find /i "-%tsedition%-" %nul1% && (
+set key=%%B
+set tempid=%%A
+)
+)
+)
+)
+
+if defined key (
+echo Checking Activation ID                  [%tempid%] [%tsedition%]
+) else (
+call :dk_color %Red% "Checking Activation ID                  [Not Found] [%tsedition%] [%osSKU%]"
+call :dk_color %Blue% "%KS% Host license is not found on your system. It is available for the below editions."
+call :dk_color %Blue% "Business, BusinessN, Enterprise, EnterpriseN, and Server editions, etc."
+goto :ts_act
+)
+
+call :dk_inskey "[%key%]"
+set tsids=%tsids% %tempid%
+goto :ts_act
+
+::========================================================================================================================================
+

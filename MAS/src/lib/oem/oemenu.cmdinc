@@ -1,0 +1,36 @@
+:oemenu
+
+cls
+set fixes=
+if not defined terminal mode 76, 25
+title  Change Office Edition %masver%
+echo:
+echo:
+echo:
+echo:
+echo         ____________________________________________________________
+echo:
+echo                 [1] Change all editions
+echo                 [2] Add edition
+echo                 [3] Remove edition
+echo:
+echo                 [4] Add/Remove apps
+echo                 ____________________________________________
+echo:
+echo                 [5] Change Office Update Channel
+echo                 [0] %_exitmsg%
+echo         ____________________________________________________________
+echo: 
+call :dk_color2 %_White% "           " %_Green% "Choose a menu option using your keyboard [1,2,3,4,5,0]"
+choice /C:123450 /N
+set _el=!errorlevel!
+if !_el!==6  exit /b
+if !_el!==5  goto :oe_changeupdchnl
+if !_el!==4  goto :oe_editedition
+if !_el!==3  goto :oe_removeedition
+if !_el!==2  set change=0& goto :oe_edition
+if !_el!==1  set change=1& goto :oe_edition
+goto :oemenu
+
+::========================================================================================================================================
+

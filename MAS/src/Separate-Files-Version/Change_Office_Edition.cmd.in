@@ -1,0 +1,761 @@
+@set masver=3.12
+@echo off
+
+
+
+::============================================================================
+::
+::   Homepage: m{}assgrave{dot}dev
+::
+::============================================================================
+
+
+
+::========================================================================================================================================
+
+::  Set environment variables, it helps if they are misconfigured in the system
+
+setlocal EnableExtensions
+setlocal DisableDelayedExpansion
+
+set "PathExt=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC"
+
+set "SysPath=%SystemRoot%\System32"
+set "Path=%SystemRoot%\System32;%SystemRoot%;%SystemRoot%\System32\Wbem;%SystemRoot%\System32\WindowsPowerShell\v1.0\"
+if exist "%SystemRoot%\Sysnative\reg.exe" (
+set "SysPath=%SystemRoot%\Sysnative"
+set "Path=%SystemRoot%\Sysnative;%SystemRoot%;%SystemRoot%\Sysnative\Wbem;%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\;%Path%"
+)
+
+set "ComSpec=%SysPath%\cmd.exe"
+set "PSModulePath=%ProgramFiles%\WindowsPowerShell\Modules;%SysPath%\WindowsPowerShell\v1.0\Modules"
+
+set re1=
+set re2=
+set "_cmdf=%~f0"
+for %%# in (%*) do (
+if /i "%%#"=="re1" set re1=1
+if /i "%%#"=="re2" set re2=1
+if /i "%%#"=="-qedit" (set re1=1&set re2=1)
+)
+
+:: Re-launch the script with x64 process if it was initiated by x86 process on x64 bit Windows
+:: or with ARM64 process if it was initiated by x86/ARM32 process on ARM64 Windows
+
+if exist %SystemRoot%\Sysnative\cmd.exe if not defined re1 (
+setlocal EnableDelayedExpansion
+start %SystemRoot%\Sysnative\cmd.exe /c ""!_cmdf!" %* re1"
+exit /b
+)
+
+:: Re-launch the script with ARM32 process if it was initiated by x64 process on ARM64 Windows
+
+if exist %SystemRoot%\SysArm32\cmd.exe if %PROCESSOR_ARCHITECTURE%==AMD64 if not defined re2 (
+setlocal EnableDelayedExpansion
+start %SystemRoot%\SysArm32\cmd.exe /c ""!_cmdf!" %* re2"
+exit /b
+)
+
+::========================================================================================================================================
+
+set "blank="
+set "mas=ht%blank%tps%blank%://m%blank%ass%blank%grave.dev/"
+set "github=ht%blank%tps%blank%://github.com/m%blank%assgra%blank%vel/Micro%blank%soft-Acti%blank%vation-Scripts"
+set "selfgit=ht%blank%tps%blank%://git.acti%blank%vated.win/Micr%blank%osoft-Act%blank%ivation-Scripts"
+
+::  Check if Null service is working, it's important for the batch script
+
+sc query Null | find /i "RUNNING"
+if %errorlevel% NEQ 0 (
+echo:
+echo Null service is not running, script may crash...
+echo:
+echo:
+echo Check this webpage for help - %mas%fix_service
+echo:
+echo:
+ping 127.0.0.1 -n 20
+)
+cls
+
+::  Check LF line ending
+
+pushd "%~dp0"
+>nul findstr /v "$" "%~nx0" && (
+echo:
+echo Error - Script either has LF line ending issue or an empty line at the end of the script is missing.
+echo:
+echo:
+echo Check this webpage for help - %mas%troubleshoot
+echo:
+echo:
+ping 127.0.0.1 -n 20 >nul
+popd
+exit /b
+)
+popd
+
+::========================================================================================================================================
+
+cls
+color 07
+title  Change Office Edition %masver%
+
+set _args=
+set _elev=
+set _unattended=0
+
+set _args=%*
+if defined _args set _args=%_args:"=%
+if defined _args set _args=%_args:re1=%
+if defined _args set _args=%_args:re2=%
+if defined _args (
+for %%A in (%_args%) do (
+if /i "%%A"=="-el"                    set _elev=1
+)
+)
+
+set "nul1=1>nul"
+set "nul2=2>nul"
+set "nul6=2^>nul"
+set "nul=>nul 2>&1"
+
+call :dk_setvar
+set "line=echo ___________________________________________________________________________________________"
+
+::========================================================================================================================================
+
+if %winbuild% EQU 1 (
+%eline%
+echo Failed to detect Windows build number.
+echo:
+setlocal EnableDelayedExpansion
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+goto dk_done
+)
+
+if exist "%Systemdrive%\Users\WDAGUtilityAccount" (
+sc query gcs | find /i "RUNNING" %nul% && (
+%eline%
+echo Windows Sandbox detected.
+echo The script cannot run due to missing licensing components. Aborting...
+echo:
+goto dk_done
+)
+)
+
+if %winbuild% LSS 7600 (
+%eline%
+echo Unsupported OS version detected [%winbuild%].
+echo This option is supported only for Windows 7/8/8.1/10/11 and their Server equivalents.
+goto dk_done
+)
+
+::========================================================================================================================================
+
+::  Fix special character limitations in path name
+
+set "_work=%~dp0"
+if "%_work:~-1%"=="\" set "_work=%_work:~0,-1%"
+
+set "_batf=%~f0"
+set "_batp=%_batf:'=''%"
+
+set _PSarg="""%~f0""" -el %_args%
+set _PSarg=%_PSarg:'=''%
+
+set "_ttemp=%userprofile%\AppData\Local\Temp"
+
+setlocal EnableDelayedExpansion
+
+::========================================================================================================================================
+
+echo "!_batf!" | find /i "!_ttemp!" %nul1% && (
+if /i not "!_work!"=="!_ttemp!" (
+%eline%
+echo The script was launched from the temp folder.
+echo You are most likely running the script directly from the archive file.
+echo:
+echo Extract the archive file and launch the script from the extracted folder.
+goto dk_done
+)
+)
+
+::========================================================================================================================================
+
+::  Elevate script as admin and pass arguments and preventing loop
+
+%nul1% fltmc || (
+if not defined _elev %psc% "start cmd.exe -arg '/c \"!_PSarg!\"' -verb runas" && exit /b
+%eline%
+echo This script needs admin rights.
+echo Right click on this script and select 'Run as administrator'.
+goto dk_done
+)
+
+::========================================================================================================================================
+
+::  Check PowerShell
+
+::pstst $ExecutionContext.SessionState.LanguageMode :pstst
+
+for /f "delims=" %%a in ('%psc% "if ($PSVersionTable.PSEdition -ne 'Core') {$f=[IO.File]::ReadAllText('!_batp!') -split ':pstst';. ([scriptblock]::Create($f[1]))}" %nul6%') do (set tstresult=%%a)
+
+if /i not "%tstresult%"=="FullLanguage" (
+%eline%
+for /f "delims=" %%a in ('%psc% "$ExecutionContext.SessionState.LanguageMode" %nul6%') do (set tstresult2=%%a)
+echo Test 1 - %tstresult%
+echo Test 2 - !tstresult2!
+echo:
+
+REM check LanguageMode
+
+echo: !tstresult2! | findstr /i "ConstrainedLanguage RestrictedLanguage NoLanguage" %nul1% && (
+echo FullLanguage mode not found in PowerShell. Aborting...
+echo If you have applied restrictions on Powershell then undo those changes.
+set fixes=%fixes% %mas%fix_powershell
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%fix_powershell"
+goto dk_done
+)
+
+REM check Powershell core version
+
+cmd /c "%psc% "$PSVersionTable.PSEdition"" | find /i "Core" %nul1% && (
+echo Windows Powershell is needed for MAS but it seems to be replaced with Powershell core. Aborting...
+set fixes=%fixes% %mas%in-place_repair_upgrade
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%in-place_repair_upgrade"
+goto dk_done
+)
+
+REM check for Mal-ware that may cause issues with Powershell
+
+for /r "%ProgramFiles%\" %%f in (secureboot.exe) do if exist "%%f" (
+echo "%%f"
+echo Mal%blank%ware found, PowerShell is not working properly.
+set fixes=%fixes% %mas%remove_mal%w%ware
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%remove_mal%w%ware"
+goto dk_done
+)
+
+REM check if .NET is working properly
+
+if /i "!tstresult2!"=="FullLanguage" (
+cmd /c "%psc% ""try {[System.AppDomain]::CurrentDomain.GetAssemblies(); [System.Math]::Sqrt(144)} catch {Exit 3}""" %nul%
+if !errorlevel!==3 (
+echo Windows Powershell failed to load .NET command. Aborting...
+set fixes=%fixes% %mas%in-place_repair_upgrade
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%in-place_repair_upgrade"
+goto dk_done
+)
+)
+
+REM check antivirus and other errors
+
+echo PowerShell is not working properly. Aborting...
+
+if /i "!tstresult2!"=="FullLanguage" (
+echo:
+echo Your antivirus software might be blocking the script.
+echo:
+sc query sense | find /i "RUNNING" %nul% && (
+echo Installed Antivirus - Microsoft Defender for Endpoint
+)
+cmd /c "%psc% ""$av = Get-WmiObject -Namespace root\SecurityCenter2 -Class AntiVirusProduct; $n = @(); foreach ($i in $av) { $n += $i.displayName }; if ($n) { Write-Host ('Installed Antivirus - ' + ($n -join ', '))}"""
+)
+
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+goto dk_done
+)
+
+::========================================================================================================================================
+
+::  Disable QuickEdit and launch from conhost.exe to avoid Terminal app
+
+if %winbuild% GEQ 17763 (
+set terminal=1
+) else (
+set terminal=
+)
+
+::  Check if script is running in Terminal app
+
+if defined terminal (
+set lines=0
+for /f "skip=3 tokens=* delims=" %%A in ('mode con') do if "!lines!"=="0" (
+for %%B in (%%A) do set lines=%%B
+)
+if !lines! GEQ 100 set terminal=
+)
+
+if %_unattended%==1 goto :skipQE
+for %%# in (%_args%) do (if /i "%%#"=="-qedit" goto :skipQE)
+
+::  Relaunch to disable QuickEdit in the current session and use conhost.exe instead of the Terminal app
+::  This code disables QuickEdit for the current cmd.exe session without making permanent registry changes
+::  It is included because clicking on the script window can pause execution, causing confusion that the script has stopped due to an error
+
+set resetQE=1
+reg query HKCU\Console /v QuickEdit %nul2% | find /i "0x0" %nul1% && set resetQE=0
+reg add HKCU\Console /v QuickEdit /t REG_DWORD /d 0 /f %nul1%
+
+if defined terminal (
+start conhost.exe "!_batf!" %_args% -qedit
+start reg add HKCU\Console /v QuickEdit /t REG_DWORD /d %resetQE% /f %nul1%
+exit /b
+) else if %resetQE% EQU 1 (
+start cmd.exe /c ""!_batf!" %_args% -qedit"
+start reg add HKCU\Console /v QuickEdit /t REG_DWORD /d %resetQE% /f %nul1%
+exit /b
+)
+
+:skipQE
+
+::========================================================================================================================================
+
+::  Check for updates
+
+set -=
+set old=
+set pingp=
+set upver=%masver:.=%
+
+for %%A in (
+activ%-%ated.win
+mass%-%grave.dev
+) do if not defined pingp (
+for /f "delims=[] tokens=2" %%B in ('ping -n 1 %%A') do (
+if not "%%B"=="" (set old=1& set pingp=1)
+for /f "delims=[] tokens=2" %%C in ('ping -n 1 updatecheck%upver%.%%A') do (
+if not "%%C"=="" set old=
+)
+)
+)
+
+if defined old (
+echo ________________________________________________
+%eline%
+echo Your version of MAS [%masver%] is outdated.
+echo ________________________________________________
+echo:
+if not %_unattended%==1 (
+echo [1] Get Latest MAS
+echo [0] Continue Anyway
+echo:
+call :dk_color %_Green% "Choose a menu option using your keyboard [1,0] :"
+choice /C:10 /N
+if !errorlevel!==2 rem
+if !errorlevel!==1 (start %selfgit% & start %github% & start %mas% & exit /b)
+)
+)
+
+::========================================================================================================================================
+
+cls
+if not defined terminal mode 98, 30
+title  Change Office Edition %masver%
+
+echo:
+echo Initializing...
+echo:
+
+::========================================================================================================================================
+
+set spp=SoftwareLicensingProduct
+set sps=SoftwareLicensingService
+
+call :dk_reflection
+call :dk_ckeckwmic
+call :dk_sppissue
+
+for /f "tokens=6-7 delims=[]. " %%i in ('ver') do if not "%%j"=="" (
+set fullbuild=%%i.%%j
+) else (
+for /f "tokens=3" %%G in ('"reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v UBR" %nul6%') do if not errorlevel 1 set /a "UBR=%%G"
+for /f "skip=2 tokens=3,4 delims=. " %%G in ('reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v BuildLabEx') do (
+if defined UBR (set "fullbuild=%%G.!UBR!") else (set "fullbuild=%%G.%%H")
+)
+)
+
+::========================================================================================================================================
+
+::  Check Windows Edition
+::  This is just to ensure that SPP/WMI are functional
+
+cls
+set osedition=0
+if %_wmic% EQU 1 set "chkedi=for /f "tokens=2 delims==" %%a in ('"wmic path %spp% where (ApplicationID='55c92734-d682-4d71-983e-d6ec3f16059f' AND LicenseDependsOn is NULL AND PartialProductKey IS NOT NULL) get LicenseFamily /VALUE" %nul6%')"
+if %_wmic% EQU 0 set "chkedi=for /f "tokens=2 delims==" %%a in ('%psc% "(([WMISEARCHER]'SELECT LicenseFamily FROM %spp% WHERE ApplicationID=''55c92734-d682-4d71-983e-d6ec3f16059f'' AND LicenseDependsOn is NULL AND PartialProductKey IS NOT NULL').Get()).LicenseFamily ^| %% {echo ('LicenseFamily='+$_)}" %nul6%')"
+%chkedi% do if not errorlevel 1 (call set "osedition=%%a")
+
+if %osedition%==0 (
+%eline%
+echo Failed to detect OS Edition. Aborting...
+call :dk_color %Blue% "To fix this issue, activate Windows from the main menu."
+goto dk_done
+)
+
+::========================================================================================================================================
+
+::  Check installed Office 16.0 C2R
+
+set o16c2r=
+set _68=HKLM\SOFTWARE\Microsoft\Office
+set _86=HKLM\SOFTWARE\Wow6432Node\Microsoft\Office
+
+for /f "skip=2 tokens=2*" %%a in ('"reg query %_86%\ClickToRun /v InstallPath" %nul6%') do if exist "%%b\root\Licenses16\ProPlus*.xrm-ms" (set o16c2r=1&set o16c2r_reg=%_86%\ClickToRun)
+for /f "skip=2 tokens=2*" %%a in ('"reg query %_68%\ClickToRun /v InstallPath" %nul6%') do if exist "%%b\root\Licenses16\ProPlus*.xrm-ms" (set o16c2r=1&set o16c2r_reg=%_68%\ClickToRun)
+
+if not defined o16c2r_reg (
+%eline%
+echo Office C2R 2016 or later is not installed, which is required for this script.
+echo Download and install Office from below URL and try again.
+set fixes=%fixes% %mas%genuine-installation-media
+call :dk_color %_Yellow% "%mas%genuine-installation-media"
+goto dk_done
+)
+
+call :ch_getinfo
+
+::========================================================================================================================================
+
+::  Check minimum required details
+
+if %verchk% LSS 9029 (
+%eline%
+echo Installed Office version is %_version%.
+echo Minimum required version is 16.0.9029.2167
+echo Aborting...
+call :dk_color %Blue% "Download and install latest Office from below URL and try again."
+set fixes=%fixes% %mas%genuine-installation-media
+call :dk_color %_Yellow% "%mas%genuine-installation-media"
+goto dk_done
+)
+
+for %%A in (
+_oArch
+_updch
+_lang
+_clversion
+_version
+_AudienceData
+_oIds
+_c2rXml
+_c2rExe
+_c2rCexe
+_masterxml
+) do (
+if not defined %%A (
+%eline%
+echo Failed to find %%A. Aborting...
+call :dk_color %Blue% "Download and install Office from below URL and try again."
+set fixes=%fixes% %mas%genuine-installation-media
+call :dk_color %_Yellow% "%mas%genuine-installation-media"
+goto dk_done
+)
+)
+
+if %winbuild% LSS 10240 if defined ltscfound (
+%eline%
+echo Installed Office appears to be from the Volume channel %ltsc19%%ltsc21%%ltsc24%,
+echo which is not officially supported on your Windows build version %winbuild%.
+echo Aborting...
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+goto dk_done
+)
+
+set unsupbuild=
+if %winbuild% LSS 10240 if %winbuild% GEQ 9200 if %verchk% GTR 16026 set unsupbuild=1
+if %winbuild% LSS 9200 if %verchk% GTR 12527 set unsupbuild=1
+
+if defined unsupbuild (
+%eline%
+echo Unsupported Office %verchk% is installed on your Windows build version %winbuild%.
+echo Aborting...
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+goto dk_done
+)
+
+set "o_randguid="
+for /f %%G in ('%psc% "[Guid]::NewGuid().Guid" ^| findstr /r "^[0123456789abcdef]*-[0123456789abcdef]*-[0123456789abcdef]*-[0123456789abcdef]*-[0123456789abcdef]*$"') do set "o_randguid=%%G"
+if not defined o_randguid (
+set "o_randguid="
+%eline%
+echo Unable to generate GUID with PowerShell.
+echo Aborting...
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+goto dk_done
+)
+md "%SystemRoot%\Temp\%o_randguid%\"
+
+::========================================================================================================================================
+
+::@include lib/oem/oemenu.cmdinc
+::@include lib/office/oe_edition.cmdinc
+::@include lib/office/oe_editionchangepre.cmdinc
+::@include lib/office/oe_editionchange.cmdinc
+::@include lib/office/oe_excludeappspre.cmdinc
+::@include lib/office/oe_excludeapps.cmdinc
+::@include lib/misc/excludelist.cmdinc
+::@include lib/office/oe_editionchangefinal.cmdinc
+::@include lib/office/oe_editedition.cmdinc
+::@include lib/office/oe_removeedition.cmdinc
+::@include lib/office/oe_changeupdchnl.cmdinc
+::@include lib/office/oe_changeunoff.cmdinc
+:oe_goback
+
+call :oe_tempcleanup
+
+echo:
+if defined fixes (
+call :dk_color %White% "Follow ALL the ABOVE blue lines.   "
+call :dk_color2 %Blue% "Press [1] to Open Support Webpage " %Gray% " Press [0] to Go Back"
+choice /C:10 /N
+if !errorlevel!==2 goto :oemenu
+if !errorlevel!==1 (start %selfgit% & start %github% & for %%# in (%fixes%) do (start %%#))
+)
+
+if defined terminal (
+call :dk_color %_Yellow% "Press [0] key to go back..."
+choice /c 0 /n
+) else (
+call :dk_color %_Yellow% "Press any key to go back..."
+pause %nul1%
+)
+goto :oemenu
+
+::========================================================================================================================================
+
+::@include lib/office/oe_cleanupreg.cmdinc
+::@include lib/office/oe_tempcleanup.cmdinc
+::@include lib/misc/ch_getinfo.cmdinc
+::@include lib/office/oe_getlangs.cmdinc
+:oe_chkinternet
+
+set _int=
+for %%a in (l.root-servers.net resolver1.opendns.com download.windowsupdate.com google.com) do if not defined _int (
+for /f "delims=[] tokens=2" %%# in ('ping -n 1 %%a') do (if not "%%#"=="" set _int=1)
+)
+
+if not defined _int (
+%psc% "If([Activator]::CreateInstance([Type]::GetTypeFromCLSID([Guid]'{DCB00C01-570F-4A9B-8D69-199FDBA5723B}')).IsConnectedToInternet){Exit 0}Else{Exit 1}"
+if !errorlevel!==0 (set _int=1)
+)
+
+if not defined _int (
+%eline%
+call :dk_color %Red% "Internet is not connected."
+call :dk_color %Blue% "Internet is required for this operation."
+)
+exit /b
+
+::========================================================================================================================================
+
+::  Get available build number for a FFN
+
+:getbuild:
+$Tls12 = [Enum]::ToObject([System.Net.SecurityProtocolType], 3072)
+[System.Net.ServicePointManager]::SecurityProtocol = $Tls12
+
+$FFN = $env:targetFFN
+$windowsBuild = [System.Environment]::OSVersion.Version.Build
+
+$baseUrl = "https://mrodevicemgr.officeapps.live.com/mrodevicemgrsvc/api/v2/C2RReleaseData?audienceFFN=$FFN"
+$url = if ($windowsBuild -lt 9200) { "$baseUrl&osver=Client|6.1" } elseif ($windowsBuild -lt 10240) { "$baseUrl&osver=Client|6.3" } else { $baseUrl }
+
+$response = if ($windowsBuild -ge 9200) { irm -Uri $url -Method Get } else { (New-Object System.Net.WebClient).DownloadString($url) }
+
+if ($windowsBuild -lt 9200) {
+    if ($response -match '"AvailableBuild"\s*:\s*"([^"]+)"') { Write-Host $matches[1] }
+} else {
+    Write-Host $response.AvailableBuild
+}
+:getbuild:
+
+::========================================================================================================================================
+
+::  Get available edition list from c2rpridslicensefiles_auto.xml
+::  and filter the list using MasterDescriptor.x-none.xml
+::  and exclude unsupported products on Windows 7/8/8.1
+
+:getlist:
+$xmlPath1 = $env:_c2rXml
+$xmlPath2 = $env:_masterxml
+$outputDir = $env:SystemRoot + "\Temp\$env:o_randguid\"
+$buildNumber = [System.Environment]::OSVersion.Version.Build
+$excludedKeywords = @("2019", "2021", "2024")
+$productReleaseIds = @()
+
+if (Test-Path $xmlPath1) {
+    $xml1 = New-Object -TypeName System.Xml.XmlDocument
+    $xml1.Load($xmlPath1)
+    foreach ($node in $xml1.SelectNodes("//ProductReleaseId")) {
+        $id = $node.GetAttribute("id")
+        $exclude = $false
+        if ($buildNumber -lt 10240) {
+            foreach ($keyword in $excludedKeywords) {
+                if ($id -match $keyword) { $exclude = $true; break }
+            }
+        }
+        if ($id -ne "CommonLicenseFiles" -and -not $exclude) { $productReleaseIds += $id }
+    }
+}
+
+$categories = @{
+    "Suites_Retail" = @(); "Suites_Volume" = @()
+    "SingleApps_Retail" = @(); "SingleApps_Volume" = @()
+}
+
+foreach ($id in $productReleaseIds) {
+    $category = if ($id -match "Retail") { "Retail" } else { "Volume" }
+    $categories["SingleApps_$category"] += $id
+}
+
+if (Test-Path $xmlPath2) {
+    $xml2 = New-Object -TypeName System.Xml.XmlDocument
+    $xml2.Load($xmlPath2)
+    foreach ($sku in $xml2.SelectNodes("//SKU")) {
+        $skuId = $sku.GetAttribute("ID")
+        if ($productReleaseIds -contains $skuId) {
+            $appIds = $sku.SelectNodes("Apps/App") | ForEach-Object { $_.GetAttribute("id") }
+            if ($appIds -contains "Excel" -and $appIds -contains "Word") {
+                $category = if ($skuId -match "Retail") { "Retail" } else { "Volume" }
+                $categories["Suites_$category"] += $skuId
+                $categories["SingleApps_$category"] = $categories["SingleApps_$category"] | Where-Object { $_ -ne $skuId }
+            }
+        }
+    }
+}
+
+foreach ($section in $categories.Keys) {
+    $filePath = Join-Path -Path $outputDir -ChildPath "$section.txt"
+    $ids = $categories[$section]
+    if ($ids.Count -gt 0) { $ids | Out-File -FilePath $filePath -Encoding ASCII }
+}
+:getlist:
+
+::========================================================================================================================================
+
+::  Get App list for a specific product ID using MasterDescriptor.x-none.xml
+
+:getappnames:
+$xmlPath = $env:_masterxml
+$targetSkuId = $env:targetedition
+$outputDir = $env:SystemRoot + "\Temp\$env:o_randguid\"
+$outputFile = Join-Path -Path $outputDir -ChildPath "getAppIds.txt"
+$excludeIds = @("shared", "PowerPivot", "PowerView", "MondoOnly", "OSM", "OSMUX", "Groove", "DCF")
+
+$xml = New-Object -TypeName System.Xml.XmlDocument
+$xml.Load($xmlPath)
+
+$appIdsList = @()
+$skuNodes = $xml.SelectNodes("//SKU[@ID='$targetSkuId']")
+
+foreach ($skuNode in $skuNodes) {
+    foreach ($app in $skuNode.SelectNodes("Apps/App")) {
+        $appId = $app.GetAttribute("id")
+        if ($excludeIds -notcontains $appId) {
+            $appIdsList += $appId
+        }
+    }
+}
+
+if ($appIdsList.Count -gt 0) {
+    $appIdsList | Out-File -FilePath $outputFile -Encoding ASCII
+}
+:getappnames:
+
+::========================================================================================================================================
+
+::  Set variables
+
+:dk_setvar
+
+set ps=%SysPath%\WindowsPowerShell\v1.0\powershell.exe
+set psc=%ps% -nop -c
+set winbuild=1
+for /f "tokens=2 delims=[]" %%G in ('ver') do for /f "tokens=2,3,4 delims=. " %%H in ("%%~G") do set "winbuild=%%J"
+
+set _slexe=sppsvc.exe& set _slser=sppsvc
+if %winbuild% LEQ 6300 (set _slexe=SLsvc.exe& set _slser=SLsvc)
+if %winbuild% LSS 7600 if exist "%SysPath%\SLsvc.exe" (set _slexe=SLsvc.exe& set _slser=SLsvc)
+if %_slexe%==SLsvc.exe set _vis=1
+
+set _NCS=1
+if %winbuild% LSS 10586 set _NCS=0
+if %winbuild% GEQ 10586 reg query "HKCU\Console" /v ForceV2 %nul2% | find /i "0x0" %nul1% && (set _NCS=0)
+
+echo "%PROCESSOR_ARCHITECTURE% %PROCESSOR_ARCHITEW6432%" | find /i "ARM64" %nul1% && (if %winbuild% LSS 21277 set ps32onArm=1)
+
+if %_NCS% EQU 1 (
+for /F %%a in ('echo prompt $E ^| cmd') do set "esc=%%a"
+set     "Red="41;97m""
+set    "Gray="100;97m""
+set   "Green="42;97m""
+set    "Blue="44;97m""
+set   "White="107;91m""
+set    "_Red="40;91m""
+set  "_White="40;37m""
+set  "_Green="40;92m""
+set "_Yellow="40;93m""
+) else (
+set     "Red="Red" "white""
+set    "Gray="Darkgray" "white""
+set   "Green="DarkGreen" "white""
+set    "Blue="Blue" "white""
+set   "White="White" "Red""
+set    "_Red="Black" "Red""
+set  "_White="Black" "Gray""
+set  "_Green="Black" "Green""
+set "_Yellow="Black" "Yellow""
+)
+
+set "nceline=echo: &echo ==== ERROR ==== &echo:"
+set "eline=echo: &call :dk_color %Red% "==== ERROR ====" &echo:"
+if %~z0 GEQ 200000 (
+set "_exitmsg=Go back"
+set "_fixmsg=Go back to Main Menu, select Troubleshoot and run Fix Licensing option."
+) else (
+set "_exitmsg=Exit"
+set "_fixmsg=In MAS folder, run Troubleshoot script and select Fix Licensing option."
+)
+exit /b
+
+::========================================================================================================================================
+
+::  Check wmic.exe
+
+::@include lib/common/dk_ckeckwmic.cmdinc
+::@include lib/common/dk_sppissue_v2.cmdinc
+::@include lib/common/dk_reflection.cmdinc
+::@include lib/common/dk_color.cmdinc
+::@include lib/common/dk_color2.cmdinc
+:dk_done
+
+echo:
+if %_unattended%==1 timeout /t 2 & exit /b
+
+if defined fixes (
+call :dk_color %White% "Follow ALL the ABOVE blue lines.   "
+call :dk_color2 %Blue% "Press [1] to Open Support Webpage " %Gray% " Press [0] to Go Back"
+choice /C:10 /N
+if !errorlevel!==2 exit /b
+if !errorlevel!==1 (start %selfgit% & start %github% & for %%# in (%fixes%) do (start %%#))
+)
+
+if defined terminal (
+call :dk_color %_Yellow% "Press [0] key to %_exitmsg%..."
+choice /c 0 /n
+) else (
+call :dk_color %_Yellow% "Press any key to %_exitmsg%..."
+pause %nul1%
+)
+
+exit /b
+
+::========================================================================================================================================
+:: Leave empty line below

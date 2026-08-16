@@ -1,0 +1,89 @@
+:ks_activate
+
+::  Opt out of sending KMSclient activation data to Microsoft
+::  https://learn.microsoft.com/en-us/windows/privacy/manage-connections-from-windows-operating-system-components-to-microsoft-services#19-software-protection-platform
+
+if %winbuild% GEQ 9600 (
+reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform" /v NoGenTicket /t REG_DWORD /d 1 /f %nul%
+if %winbuild% EQU 14393 reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform" /v NoAcquireGT /t REG_DWORD /d 1 /f %nul%
+echo Turn off %KS% AVS Validation             [Successful]
+)
+
+set "slp=SoftwareLicensingProduct"
+set "ospp=OfficeSoftwareProtectionProduct"
+
+echo:
+echo Activating Volume Products...
+if %_actwin%==1 call :_taskgetids sppwid %slp% windows
+if %_actoff%==1 call :_taskgetids sppoid %slp% office
+if %_actoff%==1 call :_taskgetids osppid %ospp% office
+
+if not defined sppwid if not defined sppoid if not defined osppid (
+if not defined keyerror (
+echo No installed Volume Windows / Office products found.
+) else (
+call :dk_color %Red% "Failed to get installed Volume Windows / Office products."
+)
+call :_taskgetserv
+call :_taskregserv
+)
+
+call :_taskact
+if not defined showfix if defined _tserror (call :dk_color %Blue% "%_fixmsg%" & set showfix=1)
+
+::  Don't create renewal task if Windows/Office volume IDs are not found, even if script is set to create it by default
+::  Don't create renewal task if only Windows volume ID is found and OEM BIOS error is present on Windows 7, even if script is set to create it by default
+
+set _deltask=
+if not %_norentsk%==0 set _deltask=1
+if not defined _deltask (
+if %_actwin%==0 call :_taskgetids sppwid %slp% windows
+if %_actoff%==0 call :_taskgetids sppoid %slp% office
+if %_actoff%==0 call :_taskgetids osppid %ospp% office
+)
+
+if not defined sppwid if not defined sppoid if not defined osppid (set _deltask=1)
+if defined oemerr if not defined sppoid if not defined osppid (set _deltask=1)
+
+if not defined _deltask (
+call :ks_renewal
+) else (
+if exist "%ProgramFiles%\Activation-Renewal\Activation_task.cmd" call :dk_color %Gray% "Deleting activation renewal task..."
+call :dk_color %Gray% "Skipping creation of activation renewal task..."
+call :ks_clearstuff %nul%
+if not defined _server (
+if %winbuild% GEQ 9200 (
+for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\ClickToRun /v InstallPath" %nul6%') do if exist "%%b\root\Licenses16\ProPlus*.xrm-ms" set "_C16R=1"
+for /f "skip=2 tokens=2*" %%a in ('"reg query HKLM\SOFTWARE\Microsoft\Office\ClickToRun /v InstallPath /reg:32" %nul6%') do if exist "%%b\root\Licenses16\ProPlus*.xrm-ms" set "_C16R=1"
+if defined _C16R (
+REM  mass{}grave{dot}dev/office-license-is-not-genuine
+set _server=10.0.0.10
+call :_taskregserv
+echo Keeping the non-existent IP address 10.0.0.10 as %KS% Server.
+)
+)
+if not defined _C16R (
+call :_taskclear-cache
+echo Cleared %KS% Server from the registry.
+)
+)
+)
+
+::  https://learn.microsoft.com/en-us/azure/virtual-desktop/windows-10-multisession-faq
+
+if %_actwin%==1 for %%# in (407) do if %osSKU%==%%# (
+call :dk_color %Red% "%winos% does not support activation on non-azure platforms."
+)
+
+if %_actoff%==1 if defined sppoid if not defined _tserror if %_NoEditionChange%==0 if defined ohub (
+echo:
+call :dk_color %Gray% "Office apps such as Word, Excel are activated, use them directly. Ignore 'Buy' button in Office dashboard app."
+)
+
+::  Trigger reevaluation of SPP's Scheduled Tasks
+
+call :dk_reeval %nul%
+goto :dk_done
+
+::========================================================================================================================================
+

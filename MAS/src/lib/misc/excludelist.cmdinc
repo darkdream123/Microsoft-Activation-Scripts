@@ -1,0 +1,26 @@
+:excludelist
+
+set excludelist=
+for %%# in (
+access
+excel
+onenote
+outlook
+powerpoint
+project
+publisher
+visio
+word
+lync
+outlookforwindows
+onedrive
+teams
+) do (
+if /i "!%%#_st!"=="Off" if defined excludelist (set excludelist=!excludelist!,%%#) else (set excludelist=,%%#)
+)
+exit /b
+
+::========================================================================================================================================
+
+::  Final command to change/add edition
+

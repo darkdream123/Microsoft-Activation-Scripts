@@ -1,0 +1,37 @@
+:cbsmethod
+
+cls
+if not defined terminal (
+mode con cols=105 lines=32
+%psc% "&{$W=$Host.UI.RawUI.WindowSize;$B=$Host.UI.RawUI.BufferSize;$W.Height=31;$B.Height=200;$Host.UI.RawUI.WindowSize=$W;$Host.UI.RawUI.BufferSize=$B;}" %nul%
+)
+
+call :ced_rebootflag
+if defined rebootreq goto dk_done
+
+echo:
+%showeditionerror%
+if defined dismnotworking call :dk_color %_Yellow% "Note - DISM.exe is not working."
+echo Changing the current edition [%osedition%] %fullbuild% to [%targetedition%]...
+echo:
+call :dk_color %Blue% "Important - Save your work before continuing, the system will auto-restart."
+echo:
+choice /C:01 /N /M "[1] Continue [0] %_exitmsg% : "
+if %errorlevel%==1 exit /b
+
+echo:
+echo Initializing...
+echo:
+
+call :ced_prep
+if defined preperror goto dk_done
+
+if %_stg%==0 (set stage=) else (set stage=-StageCurrent)
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':cbsxml\:.*';. ([scriptblock]::Create($f[1])) -SetEdition %targetedition% %stage%"
+call :ced_postprep
+%line%
+
+goto dk_done
+
+::========================================================================================================================================
+

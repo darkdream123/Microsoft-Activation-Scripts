@@ -1,0 +1,78 @@
+:oe_removeedition
+
+title  Remove Office editions %masver%
+
+call :ch_getinfo
+
+cls
+if not defined terminal (
+mode 98, 35
+)
+
+set counter=0
+for %%A in (%_oIds%) do (set /a counter+=1)
+
+if !counter! LEQ 1 (
+echo:
+echo Only "%_oIds%" product is installed.
+echo This option is available only when multiple products are installed.
+goto :oe_goback
+)
+
+::===============
+
+set inpt=
+set counter=0
+set verified=0
+set targetedition=
+
+%line%
+echo:
+call :dk_color %Gray% "You can uninstall one of the following Office editions."
+%line%
+echo:
+
+for %%A in (%_oIds%) do (
+set /a counter+=1
+echo [!counter!] %%A
+set targetedition!counter!=%%A
+)
+
+%line%
+echo:
+echo [0]  Go Back
+echo:
+call :dk_color %_Green% "Enter an option number using your keyboard and press Enter to confirm:"
+set /p inpt=
+if "%inpt%"=="" goto :oe_removeedition
+if "%inpt%"=="0" goto :oemenu
+for /l %%i in (1,1,%counter%) do (if "%inpt%"=="%%i" set verified=1)
+set targetedition=!targetedition%inpt%!
+if %verified%==0 goto :oe_removeedition
+
+::===============
+
+cls
+if not defined terminal mode 105, 32
+
+call :oe_getlangs %targetedition%
+set "c2rcommand="%_c2rExe%" platform=%_oArch% productstoremove=%targetedition%.16_%_allLangs%"
+
+echo:
+echo Running the below command, please wait...
+echo:
+echo %c2rcommand%
+%c2rcommand%
+
+if %errorlevel% NEQ 0 (
+echo:
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+)
+
+goto :oe_goback
+
+::========================================================================================================================================
+
+::  Change Office update channel
+

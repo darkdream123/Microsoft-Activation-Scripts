@@ -1,0 +1,60 @@
+:ts_ohost
+
+::  Process Office K-M-S host
+
+echo:
+echo Processing Office %KS% Host...
+
+if defined _vis (
+echo:
+call :dk_color %Blue% "Windows Vista and Server 2008 do not support the installation of Office KMS Host."
+goto :ts_act
+)
+
+if /i %tsmethod%==KMS4k (
+echo:
+call :dk_color %Red% "Skipping Office %KS% Host                [KMS4k method is not supported with Office %KS% Host]"
+if /i %_actmethod%==Auto (
+call :dk_color %Blue% "Connect to the Internet and try again. Script will use the StaticCID activation method."
+) else (
+call :dk_color %Blue% "Use non-KMS4K activation options from the previous menu."
+)
+goto :ts_act
+)
+
+set ohostexist=
+call :dk_actids 0ff1ce15-a989-479d-af46-f275c6370663
+set ohostids=%allapps%
+call :dk_actids 59a52881-a989-479d-af46-f275c6370663
+set ohostids=%ohostids% %allapps%
+
+for %%# in (
+bfe7a195-4f8f-4f0b-a622-cf13c7d16864_KMSHost2010-ProPlusVL
+f3d89bbf-c0ec-47ce-a8fa-e5a5f97e447f_KMSHost2024Volume
+47f3b983-7c53-4d45-abc6-bcd91e2dd90a_KMSHost2021Volume
+70512334-47b4-44db-a233-be5ea33b914c_KMSHost2019Volume
+98ebfe73-2084-4c97-932c-c0cd1643bea7_KMSHost2016Volume
+2e28138a-847f-42bc-9752-61b03fff33cd_KMSHost2013Volume
+) do (
+for /f "tokens=1-2 delims=_" %%A in ("%%#") do (
+echo "%ohostids%" | find /i "%%A" %nul1% && (
+set ohostexist=1
+set tsids=!tsids! %%A
+echo Checking Activation ID                  [%%A] [%%B]
+)
+)
+)
+
+if not defined ohostexist (
+call :dk_color %Gray% "Checking Activation ID                  [Not found for Office %KS% Host]"
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%tsforge#office-kms-host"
+)
+
+echo:
+call :dk_color %Gray% "%KS% Host [Not to be confused with %KS% Client] license causes the sppsvc service to run continuously."
+call :dk_color %Gray% "Only use this activation when necessary."
+
+goto :ts_act
+
+::========================================================================================================================================
+

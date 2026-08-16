@@ -1,0 +1,118 @@
+:ks_clearstuff
+
+set "key=HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\taskcache\tasks"
+
+reg query "%key%" /f Path /s | find /i "\Activation-Renewal" %nul1% && (
+echo Deleting [Task] Activation-Renewal
+schtasks /delete /tn Activation-Renewal /f %nul%
+)
+
+reg query "%key%" /f Path /s | find /i "\Activation-Run_Once" %nul1% && (
+echo Deleting [Task] Activation-Run_Once
+schtasks /delete /tn Activation-Run_Once /f %nul%
+)
+
+If exist "%ProgramFiles%\Activation-Renewal\" (
+echo Deleting [Folder] %ProgramFiles%\Activation-Renewal\
+rmdir /s /q "%ProgramFiles%\Activation-Renewal\" %nul%
+)
+
+::  Stuff from old MAS versions
+
+schtasks /delete /tn Online_%KS%_Activation_Script-Renewal /f %nul%
+schtasks /delete /tn Online_%KS%_Activation_Script-Run_Once /f %nul%
+del /f /q "%ProgramData%\Online_%KS%_Activation.cmd" %nul%
+rmdir /s /q "%ProgramData%\Activation-Renewal\" %nul%
+rmdir /s /q "%ProgramData%\Online_%KS%_Activation\" %nul%
+rmdir /s /q "%windir%\Online_%KS%_Activation_Script\" %nul%
+reg delete "HKCR\DesktopBackground\shell\Activate Windows - Office" /f %nul%
+
+::  Check if all is removed
+
+reg query "%key%" /f Path /s | find /i "\Activation-Renewal" %nul1% && (set error_=1)
+reg query "%key%" /f Path /s | find /i "\Activation-Run_Once" %nul1% && (set error_=1)
+reg query "%key%" /f Path /s | find /i "\Online_%KS%_Activation_Script" %nul1% && (set error_=1)
+If exist "%windir%\Online_%KS%_Activation_Script\" (set error_=1)
+reg query "HKCR\DesktopBackground\shell\Activate Windows - Office" %nul% && (set error_=1)
+if exist "%ProgramData%\Online_%KS%_Activation.cmd" (set error_=1)
+if exist "%ProgramData%\Online_%KS%_Activation\" (set error_=1)
+if exist "%ProgramData%\Activation-Renewal\" (set error_=1)
+if exist "%ProgramFiles%\Activation-Renewal\" (set error_=1)
+exit /b
+
+::========================================================================================================================================
+
+:_extracttask:
+@echo off
+
+::   Renew K-M-S activation with Online servers via scheduled task
+
+::============================================================================
+::
+::   Homepage: m{}assgrave{dot}dev
+::
+::============================================================================
+
+
+if not "%~1"=="Task" (
+echo:
+echo ====== Error ======
+echo:
+echo This file is supposed to be run only by the scheduled task.
+echo:
+echo Press any key to exit
+pause >nul
+exit /b
+)
+
+::  Set Environment variables, it helps if they are misconfigured in the system
+
+setlocal EnableExtensions
+setlocal DisableDelayedExpansion
+
+set "PathExt=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC"
+
+set "SysPath=%SystemRoot%\System32"
+set "Path=%SystemRoot%\System32;%SystemRoot%;%SystemRoot%\System32\Wbem;%SystemRoot%\System32\WindowsPowerShell\v1.0\"
+if exist "%SystemRoot%\Sysnative\reg.exe" (
+set "SysPath=%SystemRoot%\Sysnative"
+set "Path=%SystemRoot%\Sysnative;%SystemRoot%;%SystemRoot%\Sysnative\Wbem;%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\;%Path%"
+)
+
+set "ComSpec=%SysPath%\cmd.exe"
+set "PSModulePath=%ProgramFiles%\WindowsPowerShell\Modules;%SysPath%\WindowsPowerShell\v1.0\Modules"
+
+>nul fltmc || exit /b
+
+::========================================================================================================================================
+
+set _tserror=
+set winbuild=1
+set "nul=>nul 2>&1"
+for /f "tokens=2 delims=[]" %%G in ('ver') do for /f "tokens=2,3,4 delims=. " %%H in ("%%~G") do set "winbuild=%%J"
+set psc=powershell.exe -nop -c
+
+set _slexe=sppsvc.exe& set _slser=sppsvc
+if %winbuild% LEQ 6300 (set _slexe=SLsvc.exe& set _slser=SLsvc)
+if %winbuild% LSS 7600 if exist "%SysPath%\SLsvc.exe" (set _slexe=SLsvc.exe& set _slser=SLsvc)
+if %_slexe%==SLsvc.exe set _vis=1
+
+set run_once=
+set t_name=Renewal Task
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\taskcache\tasks" /f Path /s | find /i "\Activation-Run_Once" >nul && (
+set run_once=1
+set t_name=Run Once Task
+)
+
+set _wmic=0
+for %%# in (wmic.exe) do @if not "%%~$PATH:#"=="" (
+cmd /c "wmic path Win32_ComputerSystem get CreationClassName /value" 2>nul | find /i "computersystem" 1>nul && set _wmic=1
+)
+if %winbuild% LSS 9200 set _wmic=1
+
+setlocal EnableDelayedExpansion
+if exist "%ProgramFiles%\Activation-Renewal\" call :_taskstart>>"%ProgramFiles%\Activation-Renewal\Logs.txt"
+exit
+
+::========================================================================================================================================
+

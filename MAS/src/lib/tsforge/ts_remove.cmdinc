@@ -1,0 +1,21 @@
+:ts_remove
+
+cls
+if not defined terminal (
+mode 100, 30
+)
+title  Remove TSforge Activation %masver%
+
+echo:
+echo TSforge activation doesn't modify any Windows components and doesn't install any new files.
+echo:
+echo Instead, it appends data to one of data files used by Software Protection Platform.
+echo:
+call :dk_color %Gray% "If you want to reset the activation status,"
+call :dk_color %Blue% "%_fixmsg%"
+echo:
+
+goto :dk_done
+
+::========================================================================================================================================
+

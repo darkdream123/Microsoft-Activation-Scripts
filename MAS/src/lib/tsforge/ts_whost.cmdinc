@@ -1,0 +1,69 @@
+:ts_whost
+
+::  Process Windows K-M-S host
+
+echo:
+echo Processing Windows %KS% Host...
+
+if /i %tsmethod%==KMS4k (
+echo:
+call :dk_color %Red% "Skipping Windows %KS% Host               [KMS4k method is not supported with Windows %KS% Host]"
+if /i %_actmethod%==Auto (
+call :dk_color %Blue% "Connect to the Internet and try again. Script will use the StaticCID activation method."
+) else (
+call :dk_color %Blue% "Use non-KMS4K activation options from the previous menu."
+)
+goto :ts_act
+)
+
+echo:
+if %winbuild% GEQ 10586 (
+call :dk_color %Gray% "With %KS% Host license, system may randomly change Windows Edition later. It is a Windows issue and can be safely ignored."
+)
+call :dk_color %Gray% "%KS% Host [Not to be confused with %KS% Client] license causes the %_slser% service to run continuously."
+call :dk_color %Blue% "Only use this activation when necessary, you can revert to normal activation from the previous menu."
+
+if %_unattended%==0 (
+echo:
+choice /C:0F /N /M "> [0] Go back  [F] Continue : "
+if !errorlevel!==1 exit /b
+echo:
+)
+
+set _arr=
+set tempid=
+set keytype=kmshost
+
+if defined _vis goto :ts_whost_vista
+
+::  Install current edition csvlk license so that correct edition can reflect for csvlk
+
+if %winbuild% GEQ 10586 (
+for %%# in ("%SysPath%\spp\tokens\skus\%tsedition%\*CSVLK*.xrm-ms") do (
+if defined _arr (set "_arr=!_arr!;"%SysPath%\spp\tokens\skus\%tsedition%\%%~nx#"") else (set "_arr="%SysPath%\spp\tokens\skus\%tsedition%\%%~nx#"")
+)
+if defined _arr %psc% "$sls = Get-WmiObject %sps%; $f=[IO.File]::ReadAllText('!_batp!') -split ':xrm\:.*';. ([scriptblock]::Create($f[1])); InstallLicenseArr '!_arr!'" %nul%
+)
+
+for /f "delims=" %%a in ('%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':wintsid\:.*';. ([scriptblock]::Create($f[1]))" %nul6%') do (
+echo "%%a" | findstr /r ".*-.*-.*-.*-.*" %nul1% && (set tsids=!tsids! %%a& set tempid=%%a)
+)
+
+if defined tempid (
+echo Checking Activation ID                  [%tempid%] [%tsedition%]
+) else (
+call :dk_color %Red% "Checking Activation ID                  [Not Found] [%tsedition%] [%osSKU%]"
+call :dk_color %Blue% "%KS% Host license is not found on your system. It is available for the below editions."
+call :dk_color %Blue% "Professional, Education, ProfessionalWorkstation, Enterprise, EnterpriseS, and Server editions, etc."
+goto :ts_act
+)
+
+if defined winsub (
+echo:
+call :dk_color %Blue% "Windows Subscription [SKU ID-%slcSKU%] found. Script will activate base edition [SKU ID-%regSKU%]."
+)
+
+goto :ts_act
+
+::========================================================================================================================================
+

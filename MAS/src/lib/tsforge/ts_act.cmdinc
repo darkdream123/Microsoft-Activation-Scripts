@@ -1,0 +1,91 @@
+:ts_act
+
+if defined eval (
+echo:
+echo Activating...
+echo:
+call :dk_act
+
+set gpr=0
+set gprdays=0
+set actdone=
+for /f "delims=" %%a in ('%psc% "(Get-WmiObject -Query 'SELECT GracePeriodRemaining FROM %spp% WHERE ApplicationID=''55c92734-d682-4d71-983e-d6ec3f16059f'' AND PartialProductKey IS NOT NULL AND LicenseDependsOn is NULL').GracePeriodRemaining" %nul6%') do set "gpr=%%a"
+set /a "gprdays=(!gpr!+1440-1)/1440"
+
+if !gprdays! EQU 90 set actdone=1
+if !gprdays! EQU 180 set actdone=1
+
+if defined actdone (
+call :dk_color %Green% "[%winos%] has been reset and activated successfully for !gprdays! days."
+) else (
+set error=1
+set showfix=1
+call :dk_color %Red% "[%winos%] Activation Failed %error_code%. Remaining Period: !gprdays! days [!gpr! minutes]."
+if not defined noact (
+call :dk_color %Gray% "To activate, check your internet connection and ensure the date and time are correct."
+) else (
+call :dk_color %Blue% "This Windows version is known to not activate due to MS Windows/Server issues."
+)
+if not defined showfix call :dk_color %Blue% "%_fixmsg%"
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+)
+)
+
+if defined tsids (
+echo:
+if not defined _vis if not defined oldks echo Installing Forged Product Key Data...
+if /i %tsmethod%==KMS4k (
+echo Writing TrustedStore data...
+) else (
+if /i %tsmethod%==StaticCID (echo Depositing Static Confirmation ID...) else (echo Depositing Zero Confirmation ID...)
+)
+echo:
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':tsforge\:.*';. ([scriptblock]::Create($f[1])) %tsids%"
+if !errorlevel!==3 (
+if %_actman%==0 (if not defined showfix call :dk_color %Blue% "%_fixmsg%")
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+) else (
+if /i %tsmethod%==KMS4k if %winbuild% GEQ 26100 if %_actwin%==1 (
+echo:
+call :dk_color %Gray% "In Windows settings, you may see a renewal notification for activation that can be ignored."
+if /i %_actmethod%==Auto call :dk_color %Gray% "To avoid this notification, run the script with an internet connection to use the StaticCID method."
+)
+echo "%tsids%" | find /i "7e94be23-b161-4956-a682-146ab291774c" %nul1% && (
+call :dk_color %Gray% "Windows Update gets 1-3 years of ESU; 4-6 are unofficial but let you install Server 2008 R2 updates manually."
+)
+echo "%tsids%" | findstr /i "4afc620f-12a4-48ad-8015-2aebfbd6e47c 11be7019-a309-4763-9a09-091d1722ffe3" %nul1% && (
+call :dk_color %Gray% "ESU is not officially supported on Windows 8.1, but updates can be installed manually until January 2024."
+)
+echo "%tsids%" | findstr /i "83d49986-add3-41d7-ba33-87c7bfb5c0fb 0b533b5e-08b6-44f9-b885-c2de291ba456" %nul1% && (
+call :dk_color %Gray% "Windows Update gets 1-3 years of ESU; 4-6 are unofficial but may let you install LTSC updates manually."
+if exist %SysPath%\ClipESUConsumer.exe (%SysPath%\ClipESUConsumer.exe -evaluateEligibility)
+if exist %SysPath%\ClipESU.exe (%SysPath%\ClipESU.exe %nul%)
+)
+)
+
+if defined esuexistsup echo Help: %mas%tsforge#windows-esu
+
+if %_actwin%==1 for %%# in (407) do if %osSKU%==%%# (
+call :dk_color %Red% "%winos% does not support activation on non-azure platforms."
+)
+
+if %_actoff%==1 if not defined error if defined ohub (
+echo:
+call :dk_color %Gray% "Office apps such as Word, Excel are activated, use them directly. Ignore 'Buy' button in Office dashboard app."
+)
+
+REM Trigger reevaluation of SPP's Scheduled Tasks
+call :dk_reeval %nul%
+)
+
+if not defined tsids if defined error if not defined showfix (
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+)
+
+goto :dk_done
+
+::========================================================================================================================================
+

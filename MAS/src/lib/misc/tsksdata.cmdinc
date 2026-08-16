@@ -1,0 +1,119 @@
+:tsksdata
+
+set f=
+for %%# in (
+:: Office 2013
+15_AccessVolume_-AccessRetail-
+15_AccessRuntimeRetail
+15_ExcelVolume_-ExcelRetail-
+15_GrooveVolume_-GrooveRetail-
+15_InfoPathVolume_-InfoPathRetail-
+15_LyncAcademicRetail
+15_LyncEntryRetail
+15_LyncVolume_-LyncRetail-
+15_MondoRetail
+15_MondoVolume_-O365BusinessRetail-O365HomePremRetail-O365ProPlusRetail-O365SmallBusPremRetail-
+15_OneNoteFreeRetail
+15_OneNoteVolume_-OneNoteRetail-
+15_OutlookVolume_-OutlookRetail-
+15_PowerPointVolume_-PowerPointRetail-
+15_ProjectProVolume_-ProjectProRetail-
+15_ProjectStdVolume_-ProjectStdRetail-
+15_ProPlusVolume_-ProPlusRetail-ProfessionalPipcRetail-ProfessionalRetail-
+15_PublisherVolume_-PublisherRetail-
+15_SPDRetail
+15_StandardVolume_-StandardRetail-HomeBusinessPipcRetail-HomeBusinessRetail-HomeStudentARMRetail-HomeStudentPlusARMRetail-HomeStudentRetail-PersonalPipcRetail-PersonalRetail-
+15_VisioProVolume_-VisioProRetail-
+15_VisioStdVolume_-VisioStdRetail-
+15_WordVolume_-WordRetail-
+:: Office 2016
+16_AccessRuntimeRetail
+16_AccessVolume_-AccessRetail-
+16_ExcelVolume_-ExcelRetail-
+16_MondoRetail
+16_MondoVolume_-O365AppsBasicRetail-O365BusinessRetail-O365EduCloudRetail-O365HomePremRetail-O365ProPlusRetail-O365SmallBusPremRetail-
+16_OneNoteFreeRetail
+16_OneNoteVolume_-OneNoteRetail-OneNote2021Retail-
+16_OutlookVolume_-OutlookRetail-
+16_PowerPointVolume_-PowerPointRetail-
+16_ProjectProVolume_-ProjectProRetail-
+16_ProjectProXVolume
+16_ProjectStdVolume_-ProjectStdRetail-
+16_ProjectStdXVolume
+16_ProPlusVolume_-ProPlusRetail-ProfessionalPipcRetail-ProfessionalRetail-
+16_PublisherVolume_-PublisherRetail-
+16_SkypeServiceBypassRetail
+16_SkypeforBusinessEntryRetail
+16_SkypeforBusinessVolume_-SkypeforBusinessRetail-
+16_StandardVolume_-StandardRetail-HomeBusinessPipcRetail-HomeBusinessRetail-HomeStudentARMRetail-HomeStudentPlusARMRetail-HomeStudentRetail-HomeStudentVNextRetail-PersonalPipcRetail-PersonalRetail-
+16_VisioProVolume_-VisioProRetail-
+16_VisioProXVolume
+16_VisioStdVolume_-VisioStdRetail-
+16_VisioStdXVolume
+16_WordVolume_-WordRetail-
+:: Office 2019
+16_AccessRuntime2019Retail
+16_Access2019Volume_-Access2019Retail-
+16_Excel2019Volume_-Excel2019Retail-
+16_Outlook2019Volume_-Outlook2019Retail-
+16_PowerPoint2019Volume_-PowerPoint2019Retail-
+16_ProjectPro2019Volume_-ProjectPro2019Retail-
+16_ProjectStd2019Volume_-ProjectStd2019Retail-
+16_ProPlus2019Volume_-ProPlus2019Retail-Professional2019Retail-
+16_Publisher2019Volume_-Publisher2019Retail-
+16_SkypeforBusiness2019Volume_-SkypeforBusiness2019Retail-
+16_SkypeforBusinessEntry2019Retail
+16_Standard2019Volume_-Standard2019Retail-HomeBusiness2019Retail-HomeStudentARM2019Retail-HomeStudentPlusARM2019Retail-HomeStudent2019Retail-Personal2019Retail-
+16_VisioPro2019Volume_-VisioPro2019Retail-
+16_VisioStd2019Volume_-VisioStd2019Retail-
+16_Word2019Volume_-Word2019Retail-
+:: Office 2021
+:: OneNote2021Volume KMS license is not available
+16_AccessRuntime2021Retail
+16_Access2021Volume_-Access2021Retail-
+16_Excel2021Volume_-Excel2021Retail-
+16_Outlook2021Volume_-Outlook2021Retail-
+16_OneNoteFree2021Retail
+16_PowerPoint2021Volume_-PowerPoint2021Retail-
+16_ProjectPro2021Volume_-ProjectPro2021Retail-
+16_ProjectStd2021Volume_-ProjectStd2021Retail-
+16_ProPlus2021Volume_-ProPlus2021Retail-Professional2021Retail-
+16_Publisher2021Volume_-Publisher2021Retail-
+16_SkypeforBusiness2021Volume_-SkypeforBusiness2021Retail-
+16_Standard2021Volume_-Standard2021Retail-HomeBusiness2021Retail-HomeStudent2021Retail-Personal2021Retail-
+16_VisioPro2021Volume_-VisioPro2021Retail-
+16_VisioStd2021Volume_-VisioStd2021Retail-
+16_Word2021Volume_-Word2021Retail-
+:: Office 2024
+16_Access2024Volume_-Access2024Retail-
+16_Excel2024Volume_-Excel2024Retail-
+16_Outlook2024Volume_-Outlook2024Retail-
+16_PowerPoint2024Volume_-PowerPoint2024Retail-
+16_ProjectPro2024Volume_-ProjectPro2024Retail-
+16_ProjectStd2024Volume_-ProjectStd2024Retail-
+16_ProPlus2024Volume_-ProPlus2024Retail-
+16_SkypeforBusiness2024Volume
+16_Standard2024Volume_-Home2024Retail-HomeBusiness2024Retail-
+16_VisioPro2024Volume_-VisioPro2024Retail-
+16_VisioStd2024Volume_-VisioStd2024Retail-
+16_Word2024Volume_-Word2024Retail-
+) do (
+for /f "tokens=1-3 delims=_" %%A in ("%%#") do (
+
+if %1==chkprod if "%oVer%"=="%%A" if not defined foundprod (
+if /i "%%B"=="%2" set foundprod=1
+)
+
+if %1==getinfo if "%oVer%"=="%%A" (
+echo: %%C | find /i "-%2-" %nul% && (
+set _License=%%B
+set _altoffid=%%B
+)
+)
+
+)
+)
+exit /b
+
+::========================================================================================================================================
+

@@ -1,0 +1,32 @@
+:oh_fixprids
+
+if not defined _prids (
+call :dk_color %Gray% "Checking ProductReleaseIds In Registry  [Not Found]"
+exit /b
+)
+
+set _pridsR=
+set _pridsE=
+for /f "skip=2 tokens=2*" %%a in ('"reg query %_prids%" %nul6%') do (set "_pridsR=%%b")
+
+set _pridsR=%_pridsR:,= %
+for %%# in (%_pridsR%) do (echo %%# | findstr /I "%_oIds%" %nul1% || set _pridsE=1)
+for %%# in (%_oIds%) do (echo %%# | findstr /I "%_pridsR%" %nul1% || set _pridsE=1)
+
+if not defined _pridsE exit /b
+reg add %_prids% /t REG_SZ /d "" /f %nul1%
+
+for %%# in (%_oIds%) do (
+for /f "skip=2 tokens=2*" %%a in ('reg query %_prids%') do if not "%%b"=="" (
+reg add %_prids% /t REG_SZ /d "%%b,%%#" /f %nul1%
+) else (
+reg add %_prids% /t REG_SZ /d "%%#" /f %nul1%
+)
+)
+
+exit /b
+
+::========================================================================================================================================
+
+::  After retail to volume conversion, new product ID needs .OSPPReady key in registry, otherwise product info may not fully reflect 
+

@@ -1,0 +1,140 @@
+:cleanlicensing
+
+echo:
+echo %line%
+echo:
+call :dk_color %Blue% "Rebuilding ClipSVC Licenses..."
+echo:
+
+if %winbuild% LSS 10240 (
+echo ClipSVC license rebuilding is supported only on Windows 10/11.
+echo Skipping...
+goto :rebuildspptok
+)
+
+%psc% "(([WMISEARCHER]'SELECT Name FROM SoftwareLicensingProduct WHERE LicenseStatus=1 AND GracePeriodRemaining=0 AND PartialProductKey IS NOT NULL AND LicenseDependsOn is NULL').Get()).Name" %nul2% | findstr /i "Windows" %nul1% && (
+echo Windows is permanently activated.
+echo Skipping...
+goto :rebuildspptok
+)
+
+set _partial=
+set _keymatch=
+for /f "tokens=2 delims==" %%# in ('%psc% "(([WMISEARCHER]'SELECT PartialProductKey FROM SoftwareLicensingProduct WHERE ApplicationID=''55c92734-d682-4d71-983e-d6ec3f16059f'' AND PartialProductKey IS NOT NULL AND LicenseDependsOn is NULL').Get()).PartialProductKey | %% {echo ('PartialProductKey='+$_)}" %nul6%') do set "_partial=%%#"
+for %%# in (8HV2C QPFCT 3V66T PKCKT WXCHW 8TYMD 6F4BT 8HVX7 KD72Y 7CFBY DRR8H P39PB DYJWX MDWWW 9HKR4 M7V2X 2YV77 WT2RQ MHBPB QPF8P 2YV66 VMJ2C DJ4F6 CKFFD YY74H J8JXD BHDCD T6R4W D32MH RRK69 3PJBP) do if /i "%_partial%"=="%%#" set _keymatch=1
+
+if not defined _keymatch (
+echo HWID activation key is not installed.
+echo Skipping...
+goto :rebuildspptok
+)
+
+%psc% "If([Activator]::CreateInstance([Type]::GetTypeFromCLSID([Guid]'{DCB00C01-570F-4A9B-8D69-199FDBA5723B}')).IsConnectedToInternet){Exit 0}Else{Exit 1}"
+if errorlevel 1 (
+echo Internet is not connected.
+echo Skipping...
+goto :rebuildspptok
+)
+
+set resfail=
+for %%# in (
+licensing.mp.microsoft.com/v7.0/licenses/content
+login.live.com/ppsecure/deviceaddcredential.srf
+purchase.mp.microsoft.com/v7.0/users/me/orders
+) do if not defined resfail (
+%psc% "try { [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; irm https://%%# -Method POST } catch { if ($_.Exception.Response -eq $null) { Write-Host """"[%%#] $($_.Exception.Message)"""" -ForegroundColor Red -BackgroundColor Black; exit 3 } }"
+if !errorlevel!==3 set resfail=1
+)
+
+if defined resfail (
+echo Failed to connect to licensing servers.
+echo Skipping...
+goto :rebuildspptok
+)
+
+echo Stopping ClipSVC service...
+%psc% Stop-Service ClipSVC -force %nul%
+timeout /t 2 %nul%
+
+echo:
+echo Applying the command to clean ClipSVC Licenses...
+echo rundll32 clipc.dll,ClipCleanUpState
+
+rundll32 clipc.dll,ClipCleanUpState
+
+if %winbuild% LEQ 10240 (
+echo [Successful]
+) else (
+if exist "%ProgramData%\Microsoft\Windows\ClipSVC\tokens.dat" (
+call :dk_color %Red% "[Failed]"
+) else (
+echo [Successful]
+)
+)
+
+::  Below registry key (Volatile & Protected) gets created after the ClipSVC License cleanup command, and gets automatically deleted after 
+::  system restart. It needs to be deleted to activate the system without restart.
+
+set "RegKey=HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ClipSVC\Volatile\PersistedSystemState"
+set "_ident=HKU\S-1-5-19\SOFTWARE\Microsoft\IdentityCRL"
+
+reg query "%RegKey%" %nul% && %nul% call :regownstart
+reg delete "%RegKey%" /f %nul% 
+
+echo:
+echo Deleting a Volatile ^& Protected Registry Key...
+echo [%RegKey%]
+reg query "%RegKey%" %nul% && (
+call :dk_color %Red% "[Failed]"
+echo Reboot your machine using the restart option, that will delete this registry key automatically.
+) || (
+echo [Successful]
+)
+
+::   Clear HWID token related registry to fix activation incase there is any corruption
+
+echo:
+echo Deleting IdentityCRL Registry Key...
+echo [%_ident%]
+reg delete "%_ident%" /f %nul%
+reg query "%_ident%" %nul% && (
+call :dk_color %Red% "[Failed]"
+) || (
+echo [Successful]
+)
+
+%psc% Stop-Service ClipSVC -force %nul%
+
+::  Rebuild ClipSVC folder to fix permission issues
+
+echo:
+if %winbuild% GTR 10240 (
+echo Deleting folder %ProgramData%\Microsoft\Windows\ClipSVC\
+rmdir /s /q "C:\ProgramData\Microsoft\Windows\ClipSvc" %nul%
+
+if exist "%ProgramData%\Microsoft\Windows\ClipSVC\" (
+call :dk_color %Red% "[Failed]"
+) else (
+echo [Successful]
+)
+
+echo:
+echo Rebuilding the %ProgramData%\Microsoft\Windows\ClipSVC\ folder...
+%psc% Start-Service ClipSVC %nul%
+timeout /t 3 %nul%
+if not exist "%ProgramData%\Microsoft\Windows\ClipSVC\" timeout /t 5 %nul%
+if not exist "%ProgramData%\Microsoft\Windows\ClipSVC\" (
+call :dk_color %Red% "[Failed]"
+) else (
+echo [Successful]
+)
+)
+
+echo:
+echo Restarting wlidsvc ^& LicenseManager services...
+for %%# in (wlidsvc LicenseManager) do (%psc% "Start-Job { Restart-Service %%# } | Wait-Job -Timeout 20 | Out-Null")
+
+::========================================================================================================================================
+
+::  Rebuild SPP Tokens
+

@@ -1,0 +1,23 @@
+:oh_reset
+
+set key=
+set _oRoot=
+set _oArch=
+set _oIds=
+set _oLPath=
+set _hookPath=
+set _hook=
+set _sppcPath=
+set _osppPath=
+set _actid=
+set _prod=
+set _lic=
+set _arr=
+set _prids=
+set _config=
+set _version=
+set _License=
+exit /b
+
+::========================================================================================================================================
+

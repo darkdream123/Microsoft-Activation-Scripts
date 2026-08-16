@@ -1,0 +1,141 @@
+:ts_actman
+
+echo:
+echo Processing Manual Activation...
+echo:
+
+if /i %tsmethod%==KMS4k (
+echo:
+call :dk_color %Red% "Skipping Manual Activation              [KMS4k method is not supported with it]"
+if /i %_actmethod%==Auto (
+call :dk_color %Blue% "Connect to the Internet and try again. Script will use the StaticCID activation method."
+) else (
+call :dk_color %Blue% "Use non-KMS4K activation options from the previous menu."
+)
+goto :dk_done
+)
+
+call :dk_color %Gray% "This option is for advanced users, those who already know what they are doing."
+call :dk_color %Blue% "Some activation IDs may cause system crash [MUI mismatch], or irreversible changes [CloudEdition etc]."
+
+if %_unattended%==1 (
+echo:
+for %%# in (%tsids%) do (echo Activation ID - %%#)
+goto :ts_act
+)
+
+call :dk_color %Blue% "Although the script will try to remove those IDs from the list, it is not fully guaranteed."
+echo:
+choice /C:0F /N /M "> [0] Go back  [F] Continue : "
+if %errorlevel%==1 exit /b
+
+echo:
+echo Fetching Supported Activation IDs list. Please wait...
+
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':listactids\:.*';. ([scriptblock]::Create($f[1]))"
+if %errorlevel%==3 (
+call :dk_color %Gray% "No supported activation ID found, aborting..."
+goto :dk_done
+)
+
+for /f "delims=" %%a in ('%psc% "$ids = Get-WmiObject -Query 'SELECT ID FROM SoftwareLicensingProduct' | Select-Object -ExpandProperty ID; $ids" %nul6%') do call set "allactids= %%a !allactids! "
+
+if defined _vis (
+echo:
+call :dk_color %Blue% "On Windows Vista and Server 2008, you must manually install the key before activating it."
+)
+echo:
+call :dk_color %Gray% "Enter / Paste the Activation ID shown in first column in the opened text file, or just press Enter to return:"
+echo Add space after each Activation ID if you are adding multiple:
+echo:
+set /p tsids=
+
+del /f /q "%SystemRoot%\Temp\actids_159_*" %nul%
+if not defined tsids goto :dk_done
+
+for %%# in (%tsids%) do (
+echo "%allactids%" | find /i " %%# " %nul1% || (
+call :dk_color %Red% "[%%#] Incorrect Activation ID entered, aborting..."
+goto :dk_done
+)
+)
+
+goto :ts_act
+
+:listactids:
+$t = [AppDomain]::CurrentDomain.DefineDynamicAssembly(4, 1).DefineDynamicModule(2, $False).DefineType(0)
+$t.DefinePInvokeMethod('SLOpen', 'slc.dll', 22, 1, [Int32], @([IntPtr].MakeByRefType()), 1, 3).SetImplementationFlags(128)
+$t.DefinePInvokeMethod('SLClose', 'slc.dll', 22, 1, [IntPtr], @([IntPtr]), 1, 3).SetImplementationFlags(128)
+$t.DefinePInvokeMethod('SLGetProductSkuInformation', 'slc.dll', 22, 1, [Int32], @([IntPtr], [Guid].MakeByRefType(), [String], [UInt32].MakeByRefType(), [UInt32].MakeByRefType(), [IntPtr].MakeByRefType()), 1, 3).SetImplementationFlags(128)
+$t.DefinePInvokeMethod('SLGetLicense', 'slc.dll', 22, 1, [Int32], @([IntPtr], [Guid].MakeByRefType(), [UInt32].MakeByRefType(), [IntPtr].MakeByRefType()), 1, 3).SetImplementationFlags(128)
+$w = $t.CreateType()
+$m = [Runtime.InteropServices.Marshal]
+
+function slGetSkuInfo($SkuId) {
+    $c = 0; $b = 0
+    $r = $w::SLGetProductSkuInformation($hSLC, [ref][Guid]$SkuId, "msft:sl/EUL/PHONE/PUBLIC", [ref]$null, [ref]$c, [ref]$b)
+    return ($r -eq 0)
+}
+
+function IsMuiNotLocked($SkuId) {
+    $r = $true; $c = 0; $b = 0
+
+    $LicId = [Guid]::Empty
+    [void]$w::SLGetProductSkuInformation($hSLC, [ref][Guid]$SkuId, "fileId", [ref]$null, [ref]$c, [ref]$b)
+    $FileId = $m::PtrToStringUni($b)
+
+    $c = 0; $b = 0
+    [void]$w::SLGetLicense($hSLC, [ref][Guid]$FileId, [ref]$c, [ref]$b)
+    $blob = New-Object byte[] $c; $m::Copy($b, $blob, 0, $c)
+    $cont = [Text.Encoding]::UTF8.GetString($blob)
+    $xml = [xml]$cont.SubString($cont.IndexOf('<r'))
+
+    $xml.licenseGroup.license[0].grant | foreach {
+        $_.allConditions.allConditions.productPolicies.policyStr | where { $_.name -eq 'Kernel-MUI-Language-Allowed' } | foreach {
+            if ($_.InnerText -ne 'EMPTY') { $r = $false }
+        }
+    }
+    return $r
+}
+
+$hSLC = 0; [void]$w::SLOpen([ref]$hSLC)
+$results = Get-WmiObject -Query "SELECT ID, Name, Description FROM SoftwareLicensingProduct"
+$maxNameWidth = 60
+
+$filteredResults = $results | Where-Object {
+    if ($env:tsedition -like "*CountrySpecific*") {
+        $true
+    }
+    else {
+        $_.Name -like "*ESU*" -or $_.Name -notlike "*CountrySpecific*"
+    }
+} | Where-Object {
+    if ($env:tsedition -like "*CloudEdition*") {
+        $true
+    }
+    else {
+        $_.Name -like "*ESU*" -or $_.Name -notlike "*CloudEdition*"
+    }
+} | Where-Object {
+    $_.Name -like "*CountrySpecific*" -or (IsMuiNotLocked $_.ID)
+} | Where-Object {
+    slGetSkuInfo $_.ID
+} | ForEach-Object {
+    "$($_.ID)`t$($_.Name.PadRight($maxNameWidth))`t$($_.Description)"
+}
+
+[void]$w::SLClose($hSLC)
+if (-not $filteredResults) {
+    Exit 3
+}
+
+$sortedResults = $filteredResults | Sort-Object { $_.Split("`t")[1].Trim() }
+$output = $sortedResults -join "`r`n"
+$newGuid = [Guid]::NewGuid().Guid
+$filename = "$env:SystemRoot\Temp\actids_159_$newGuid.txt"
+$output | Set-Content -Path $filename -Encoding ASCII
+Start-Process notepad.exe $filename
+:listactids:
+
+::========================================================================================================================================
+

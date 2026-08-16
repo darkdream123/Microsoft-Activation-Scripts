@@ -1,0 +1,24 @@
+:scandatospp
+
+set token=
+for %%# in (
+%ProgramData%\Microsoft\OfficeSoftwareProtectionPlatform\
+) do (
+
+if %1==check (
+if exist %%#tokens.dat set token=%%#tokens.dat
+)
+
+if %1==delete (
+if exist %%# (
+%nul% dir /a-d /s "%%#*.dat" && (
+attrib -r -s -h "%%#*.dat" /S
+del /S /F /Q "%%#*.dat"
+)
+)
+)
+)
+exit /b
+
+::========================================================================================================================================
+

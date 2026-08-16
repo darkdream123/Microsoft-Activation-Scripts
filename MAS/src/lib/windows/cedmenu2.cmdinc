@@ -1,0 +1,170 @@
+:cedmenu2
+
+cls
+if not defined terminal mode 98, 30
+set inpt=
+set counter=0
+set verified=0
+set targetedition=
+
+%line%
+echo:
+call :dk_color %Gray% "You can change the edition [%osedition%] [%fullbuild%] to one of the following."
+%showeditionerror%
+if defined dismnotworking (
+call :dk_color %_Yellow% "Note - DISM.exe is not working."
+if /i "%osedition:~0,4%"=="Core" call :dk_color %_Yellow% "     - You will see more edition options to choose once its changed to Pro."
+)
+%line%
+echo:
+
+for %%A in (%_ntarget%) do (
+set /a counter+=1
+if /i %%A==IoTEnterprise (
+echo [!counter!]  %%A [GAC, not LTSC]
+) else (
+echo [!counter!]  %%A
+)
+set targetedition!counter!=%%A
+)
+
+%line%
+echo:
+echo [0]  %_exitmsg%
+echo:
+call :dk_color %_Green% "Enter an option number using your keyboard and press Enter to confirm:"
+set /p inpt=
+if "%inpt%"=="" goto cedmenu2
+if "%inpt%"=="0" exit /b
+for /l %%i in (1,1,%counter%) do (if "%inpt%"=="%%i" set verified=1)
+set targetedition=!targetedition%inpt%!
+if %verified%==0 goto cedmenu2
+
+::========================================================================================================================================
+
+if %winbuild% LSS 10240 goto :cbsmethod
+if exist "%SystemRoot%\Servicing\Packages\Microsoft-Windows-Server*Edition~*.mum" goto :ced_change_server
+
+cls
+if not defined terminal mode con cols=105 lines=32
+
+if /i "%targetedition%"=="ServerRdsh" (
+echo:
+call :dk_color %Red% "==== Note ===="
+echo:
+echo Once the edition is changed to "%targetedition%", 
+echo the system may not be able to properly change edition later.
+echo:
+echo [1] Continue Anyway
+echo [0] Go Back
+echo:
+call :dk_color %_Green% "Choose a menu option using your keyboard [1,0] :"
+choice /C:10 /N
+if !errorlevel!==2 goto cedmenu2
+if !errorlevel!==1 rem
+)
+
+cls
+set key=
+set _chan=
+set _dismapi=0
+
+::  Check if DISM API or slmgr.vbs is required for edition upgrade
+
+if not exist "%SysPath%\spp\tokens\skus\%targetedition%\%targetedition%*.xrm-ms" (
+echo %_wtarget% | find /i " %targetedition% " || (
+set _dismapi=1
+)
+)
+
+set "keyflow=Retail OEM:NONSLP OEM:DM Volume:MAK Volume:GVLK PGS:TB Retail:TB:Eval"
+
+call :ced_targetSKU %targetedition%
+if defined targetSKU call :ced_windowskey
+if defined key if defined pkeychannel set _chan=%pkeychannel%
+if not defined key call :changeeditiondata
+if not defined key if %_dismapi%==1 if /i "%targetedition%"=="Professional" (
+set key=VK7JG-NPHTM-C97JM-9MPGT-3V66T
+set _chan=Retail
+)
+
+if not defined key (
+%eline%
+echo [%targetedition% ^| %winbuild%]
+echo Failed to get product key from pkeyhelper.dll.
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+goto dk_done
+)
+
+::========================================================================================================================================
+
+::  Changing from Core to Non-Core & Changing editions in Windows build older than 17134 requires "changepk /productkey" or DISM Api method and restart
+::  In other cases, editions can be changed instantly with "slmgr /ipk"
+
+if %_dismapi%==1 (
+if not defined terminal mode con cols=105 lines=40
+call :ced_rebootflag
+if defined rebootreq goto dk_done
+)
+
+cls
+%line%
+echo:
+%showeditionerror%
+if defined dismnotworking call :dk_color %_Yellow% "DISM.exe is not working."
+echo Changing the current edition [%osedition%] %fullbuild% to [%targetedition%]...
+echo:
+
+if %_dismapi%==1 (
+call :dk_color %Green% "Notes -"
+echo:
+echo  - Save your work before continuing, the system will auto-restart.
+echo:
+echo  - You will need to activate with HWID option once the edition is changed.
+%line%
+echo:
+choice /C:21 /N /M "[1] Continue [2] %_exitmsg% : "
+if !errorlevel!==1 exit /b
+)
+
+::========================================================================================================================================
+
+if %_dismapi%==0 (
+echo Installing %_chan% key [%key%]
+echo:
+if %_wmic% EQU 1 wmic path %sps% where __CLASS='%sps%' call InstallProductKey ProductKey="%key%" %nul%
+if %_wmic% EQU 0 %psc% "try { $null=(([WMISEARCHER]'SELECT Version FROM %sps%').Get()).InstallProductKey('%key%'); exit 0 } catch { exit $_.Exception.InnerException.HResult }" %nul%
+set keyerror=!errorlevel!
+cmd /c exit /b !keyerror!
+if !keyerror! NEQ 0 set "keyerror=[0x!=ExitCode!]"
+
+if !keyerror! EQU 0 (
+call :dk_refresh
+call :dk_color %Green% "[Successful]"
+echo:
+call :dk_color %Gray% "Reboot is required to fully change the edition."
+) else (
+call :dk_color %Red% "[Unsuccessful] [Error Code: !keyerror!]"
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+)
+)
+
+if %_dismapi%==1 (
+echo:
+echo Applying the DISM API method with %_chan% key %key%. Please wait...
+echo:
+
+call :ced_prep
+if defined preperror goto dk_done
+
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':dismapi\:.*';. ([scriptblock]::Create($f[1])) %targetedition% %key%"
+call :ced_postprep
+)
+%line%
+
+goto dk_done
+
+::========================================================================================================================================
+

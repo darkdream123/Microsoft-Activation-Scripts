@@ -1,0 +1,167 @@
+:oh_clearblock
+
+::  Find remnants of Office vNext/shared/device license block and remove it because it stops other licenses from appearing
+::  https://learn.microsoft.com/en-us/office/troubleshoot/activation/reset-office-365-proplus-activation-state
+
+set _sidlist=
+for /f "tokens=* delims=" %%a in ('%psc% "$p = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList'; Get-ChildItem $p | ForEach-Object { $pi = (Get-ItemProperty """"$p\$($_.PSChildName)"""").ProfileImagePath; if ($pi -like '*\Users\*' -and (Test-Path """"$pi\NTUSER.DAT"""") -and -not ($_.PSChildName -match '\.bak$')) { Split-Path $_.PSPath -Leaf } }" %nul6%') do (if defined _sidlist (set _sidlist=!_sidlist! %%a) else (set _sidlist=%%a))
+
+if not defined _sidlist (
+for /f "delims=" %%a in ('%psc% "$explorerProc = Get-Process -Name explorer | Where-Object {$_.SessionId -eq (Get-Process -Id $pid).SessionId} | Select-Object -First 1; $sid = (gwmi -Query ('Select * From Win32_Process Where ProcessID=' + $explorerProc.Id)).GetOwnerSid().Sid; $sid" %nul6%') do (set _sidlist=%%a)
+)
+
+::==========================
+
+::  Load the unloaded useraccounts registry
+
+set loadedsids=
+set alrloadedsids=
+
+for %%# in (%_sidlist%) do (
+reg query HKU\%%#\Software %nul% && (
+call set "alrloadedsids=%%alrloadedsids%% %%#"
+) || (
+for /f "skip=2 tokens=2*" %%a in ('"reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\%%#" /v ProfileImagePath" %nul6%') do (
+reg load HKU\%%# "%%b\NTUSER.DAT" %nul%
+reg query HKU\%%#\Software %nul% && (
+call set "loadedsids=%%loadedsids%% %%#"
+) || (
+reg unload HKU\%%# %nul%
+)
+)
+)
+)
+
+::==========================
+
+set "_sidlist=%loadedsids% %alrloadedsids%"
+
+set /a counter=0
+for %%# in (%_sidlist%) do set /a counter+=1
+
+if %counter% EQU 0 (
+set error=1
+call :dk_color %Red% "Checking User Accounts SID              [Not Found]"
+exit /b
+)
+
+if %counter% GTR 10 (
+call :dk_color %Gray% "Checking Total User Accounts            [%counter%]"
+)
+
+::==========================
+
+::  Clear the vNext/shared/device license blocks which may prevent ohook activation
+
+set vnextexist=
+rmdir /s /q "%ProgramData%\Microsoft\Office\Licenses\" %nul%
+
+for %%x in (15 16) do (
+for %%# in (%_sidlist%) do (
+reg query HKU\%%#\Software\Microsoft\Office\%%x.0\Common\Licensing /s %nul2% | findstr /i "CIDToLicenseIdsMapping LicenseIdToEmailMapping @" %nul% && set vnextexist=1
+reg delete HKU\%%#\Software\Microsoft\Office\%%x.0\Common\Licensing /f %nul%
+
+for /f "skip=2 tokens=2*" %%a in ('"reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\%%#" /v ProfileImagePath" %nul6%') do (
+rmdir /s /q "%%b\AppData\Local\Microsoft\Office\Licenses\" %nul%
+rmdir /s /q "%%b\AppData\Local\Microsoft\Office\%%x.0\Licensing\" %nul%
+)
+)
+reg delete "HKLM\SOFTWARE\Microsoft\Office\%%x.0\Common\Licensing" /f %nul%
+reg delete "HKLM\SOFTWARE\Microsoft\Office\%%x.0\Common\Licensing" /f /reg:32 %nul%
+reg delete "HKLM\SOFTWARE\Policies\Microsoft\Office\%%x.0\Common\Licensing" /f %nul%
+reg delete "HKLM\SOFTWARE\Policies\Microsoft\Office\%%x.0\Common\Licensing" /f /reg:32 %nul%
+)
+
+::  Clear vNext in UWP Office
+
+if defined o16uwpapplist (
+for %%# in (%_sidlist%) do (
+for /f "skip=2 tokens=2*" %%a in ('"reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\%%#" /v ProfileImagePath" %nul6%') do (
+rmdir /s /q "%%b\AppData\Local\Packages\Microsoft.Office.Desktop_8wekyb3d8bbwe\LocalCache\Local\Microsoft\Office\Licenses\" %nul%
+if exist "%%b\AppData\Local\Packages\Microsoft.Office.Desktop_8wekyb3d8bbwe\SystemAppData\Helium\User.dat" (
+set defname=DEFTEMP-%%#
+reg load HKU\!defname! "%%b\AppData\Local\Packages\Microsoft.Office.Desktop_8wekyb3d8bbwe\SystemAppData\Helium\User.dat" %nul%
+reg query HKU\!defname!\Software\Microsoft\Office\16.0\Common\Licensing /s %nul2% | findstr /i "CIDToLicenseIdsMapping LicenseIdToEmailMapping @" %nul% && set vnextexist=1
+reg delete HKU\!defname!\Software\Microsoft\Office\16.0\Common\Licensing /f %nul%
+reg unload HKU\!defname! %nul%
+)
+)
+)
+)
+
+if defined vnextexist (
+echo:
+call :dk_color %Gray% "The logged-in Office account has a subscription license."
+call :dk_color %Blue% "If the subscription is active, it overrides other activation methods."
+call :dk_color %Blue% "If it is expiring soon, rerun the activation script after it expires."
+call :dk_color2 %Blue% "If it has already expired and activation fails, get help here - " %_Yellow% " %mas%troubleshoot"
+echo:
+)
+
+::  Clear SharedComputerLicensing for office
+::  https://learn.microsoft.com/en-us/deployoffice/overview-shared-computer-activation
+
+if not defined scaIsNeeded (
+reg delete HKLM\SOFTWARE\Microsoft\Office\ClickToRun\Configuration /v SharedComputerLicensing /f %nul%
+reg delete HKLM\SOFTWARE\Microsoft\Office\ClickToRun\Configuration /v SharedComputerLicensing /f /reg:32 %nul%
+reg delete HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun\Configuration /v SharedComputerLicensing /f %nul%
+reg delete HKLM\SOFTWARE\Microsoft\Office\15.0\ClickToRun\Configuration /v SharedComputerLicensing /f /reg:32 %nul%
+)
+
+::  Clear device-based-licensing
+::  https://learn.microsoft.com/en-us/deployoffice/device-based-licensing
+
+for /f %%# in ('reg query "%o16c2r_reg%\Configuration" /f *.DeviceBasedLicensing %nul6% ^| findstr REG_') do reg delete "%o16c2r_reg%\Configuration" /v %%# /f %nul%
+
+::  Remove OEM registry key
+::  https://support.microsoft.com/en-us/office/office-repeatedly-prompts-you-to-activate-on-a-new-pc-a9a6b05f-f6ce-4d1f-8d49-eb5007b64ba1
+
+for %%# in (15 16) do (
+reg delete "HKLM\SOFTWARE\Microsoft\Office\%%#.0\Common\OEM" /f %nul%
+reg delete "HKLM\SOFTWARE\Microsoft\Office\%%#.0\Common\OEM" /f /reg:32 %nul%
+)
+
+reg delete "HKU\S-1-5-20\Software\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform\Policies\0ff1ce15-a989-479d-af46-f275c6370663" /f %nul%
+reg delete "HKU\S-1-5-20\Software\Microsoft\OfficeSoftwareProtectionPlatform\Policies\0ff1ce15-a989-479d-af46-f275c6370663" /f %nul%
+reg delete "HKU\S-1-5-20\Software\Microsoft\OfficeSoftwareProtectionPlatform\Policies\59a52881-a989-479d-af46-f275c6370663" /f %nul%
+
+echo Clearing Office License Blocks          [Successfully cleared from all %counter% user accounts]
+
+::==========================
+
+::  Some retail products attempt to validate the license and may show a banner "There was a problem checking this device's license status."
+::  Resiliency registry entry can skip this check
+
+set defname=DEFTEMP-%random%
+for /f "skip=2 tokens=2*" %%a in ('"reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList" /v Default" %nul6%') do call set "defdat=%%b"
+
+if defined o16c2r if defined ohookact (
+if exist "%defdat%\NTUSER.DAT" (
+reg load HKU\%defname% "%defdat%\NTUSER.DAT" %nul%
+reg query HKU\%defname%\Software %nul% && (
+reg add HKU\%defname%\Software\Microsoft\Office\16.0\Common\Licensing\Resiliency /v "TimeOfLastHeartbeatFailure" /t REG_SZ /d "2040-01-01T00:00:00Z" /f %nul%
+)
+reg unload HKU\%defname% %nul%
+)
+
+for %%# in (%_sidlist%) do (
+reg delete HKU\%%#\Software\Microsoft\Office\16.0\Common\Licensing\Resiliency /f %nul%
+reg add HKU\%%#\Software\Microsoft\Office\16.0\Common\Licensing\Resiliency /v "TimeOfLastHeartbeatFailure" /t REG_SZ /d "2040-01-01T00:00:00Z" /f %nul%
+)
+echo Adding Registry to Skip License Check   [Successfully added to all %counter% ^& future new user accounts]
+)
+
+::==========================
+
+::  Unload the loaded useraccounts registry
+
+for %%# in (%loadedsids%) do (
+reg unload HKU\%%# %nul%
+)
+
+exit /b
+
+::========================================================================================================================================
+
+::  Uninstall other / grace Keys
+

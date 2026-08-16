@@ -1,0 +1,17 @@
+:ks_startmsi
+
+if defined o14msi call :oh_setspp 14
+if defined o14msi call :ks_processmsi 14 %o14msi_reg%
+call :oh_setspp
+if defined o15msi call :ks_processmsi 15 %o15msi_reg%
+if defined o16msi call :ks_processmsi 16 %o16msi_reg%
+
+::========================================================================================================================================
+
+echo:
+call :oh_clearblock
+if "%o16msi%%o15msi%"=="" if not "%o16uwp%%o16c2r%%o15c2r%"=="" if "%keyerror%"=="0" if %_NoEditionChange%==0 call :oh_uninstkey
+call :oh_licrefresh
+
+::========================================================================================================================================
+

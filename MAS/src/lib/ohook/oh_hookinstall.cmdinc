@@ -1,0 +1,44 @@
+:oh_hookinstall
+
+set ierror=
+set hasherror=
+
+if %_hook%==sppc32.dll set offset=2564
+if %_hook%==sppc64.dll set offset=3076
+
+::======================================
+
+::  Remove previous Install
+
+for %%# in (sppcs.dll sppc.dll) do (
+del /f /q "%_hookPath%\%%#" %nul%
+if exist "%_hookPath%\%%#" (move /y "%_hookPath%\%%#" "!_ttemp!\needsToBeDeleted%random%" %nul%)
+if exist "%_hookPath%\%%#" (set "ierror=Remove Previous Ohook Install [%%#]")
+)
+
+if defined ierror goto :oh_hookinstall_error
+
+::======================================
+
+mklink "%_hookPath%\sppcs.dll" "%_sppcPath%" %nul%
+if not exist "%_hookPath%\sppcs.dll" (
+set ierror=mklink sppcs.dll
+goto :oh_hookinstall_error
+)
+
+if not exist "%_hookPath%\sppc.dll" (
+call :oh_extractdll "%_hookPath%\sppc.dll" "%offset%"
+)
+if not exist "%_hookPath%\sppc.dll" (
+set ierror=Copy
+goto :oh_hookinstall_error
+)
+
+echo:
+echo Symlinking System's sppc.dll            ["%_hookPath%\sppcs.dll"] [Successful]
+echo Extracting Custom %_hook% to         ["%_hookPath%\sppc.dll"] [Successful]
+
+goto :oh_hookinstall_error
+
+::========================================================================================================================================
+

@@ -1,0 +1,44 @@
+:retokens
+
+cls
+if not defined terminal (
+mode 125, 32
+%psc% "&{$W=$Host.UI.RawUI.WindowSize;$B=$Host.UI.RawUI.BufferSize;$W.Height=31;$B.Height=200;$Host.UI.RawUI.WindowSize=$W;$Host.UI.RawUI.BufferSize=$B;}" %nul%
+)
+title  Fix Licensing ^(ClipSVC ^+ SPP ^+ OSPP^)
+
+if %winbuild% EQU 6001 (
+%eline%
+echo This option is not supported on Windows Vista SP1.
+echo Upgrade to Windows Vista SP2.
+goto :at_back
+)
+
+echo:
+echo %line%
+echo:   
+echo      Notes:
+echo:
+echo       - This option helps in troubleshooting activation issues.
+echo:
+echo       - This option will:
+echo            - Deactivate Windows and Office, you may need to reactivate.
+echo              If Windows is activated with motherboard / OEM / Digital license
+echo              then Windows will activate itself again.
+echo:
+echo            - Clear ClipSVC, SPP and OSPP licenses.
+echo            - Fix permissions of SPP tokens folder and registries.
+echo            - Trigger the repair option for Office.
+echo:
+call :dk_color2 %_White% "      - " %Blue% "Apply this option only when it is necessary."
+echo:
+echo %line%
+echo:
+choice /C:09 /N /M ">    [9] Continue [0] Go back : "
+if %errorlevel%==1 goto at_menu
+
+::========================================================================================================================================
+
+::  Rebuild ClipSVC Licences
+
+cls

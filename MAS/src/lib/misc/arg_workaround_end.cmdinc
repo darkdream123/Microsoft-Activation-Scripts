@@ -1,0 +1,55 @@
+:arg_workaround_end
+
+call :arg_workaround
+
+set re1=
+set re2=
+set "_cmdf=%~f0"
+for %%# in (%*) do (
+if /i "%%#"=="re1" set re1=1
+if /i "%%#"=="re2" set re2=1
+if /i "%%#"=="-qedit" (set re1=1&set re2=1)
+)
+
+:: Re-launch the script with x64 process if it was initiated by x86 process on x64 bit Windows
+:: or with ARM64 process if it was initiated by x86/ARM32 process on ARM64 Windows
+
+if exist %SystemRoot%\Sysnative\cmd.exe if not defined re1 (
+setlocal EnableDelayedExpansion
+start %SystemRoot%\Sysnative\cmd.exe /c ""!_cmdf!" %* re1"
+exit /b
+)
+
+:: Re-launch the script with ARM32 process if it was initiated by x64 process on ARM64 Windows
+
+if exist %SystemRoot%\SysArm32\cmd.exe if %PROCESSOR_ARCHITECTURE%==AMD64 if not defined re2 (
+setlocal EnableDelayedExpansion
+start %SystemRoot%\SysArm32\cmd.exe /c ""!_cmdf!" %* re2"
+exit /b
+)
+
+::========================================================================================================================================
+
+::  Debug code
+
+if "%_debug%" EQU "0" (
+set "nul1=1>nul"
+set "nul2=2>nul"
+set "nul6=2^>nul"
+set "nul=>nul 2>&1"
+goto :_debug
+)
+
+set "nul1="
+set "nul2="
+set "nul6="
+set "nul="
+
+@echo on
+@prompt $G
+@call :_debug "%_debug%" >"%~dp0_tmp.log" 2>&1
+@cmd /u /c type "%~dp0_tmp.log">"%~dp0_Debug.log"
+@del "%~dp0_tmp.log"
+@echo off
+@exit /b
+

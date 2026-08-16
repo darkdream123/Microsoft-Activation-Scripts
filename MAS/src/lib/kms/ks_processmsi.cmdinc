@@ -1,0 +1,38 @@
+:ks_processmsi
+
+::  Process Office MSI Version
+
+call :ks_reset
+set _oMSI=1
+
+if "%1"=="14" (
+call :dk_actids 59a52881-a989-479d-af46-f275c6370663
+) else (
+call :dk_actids 0ff1ce15-a989-479d-af46-f275c6370663
+)
+
+set oVer=%1
+for /f "skip=2 tokens=2*" %%a in ('"reg query %2\Common\InstallRoot /v Path" %nul6%') do (set "_oRoot=%%b")
+for /f "skip=2 tokens=2*" %%a in ('"reg query %2\Common\ProductVersion /v LastProduct" %nul6%') do (set "_version=%%b")
+if "%_oRoot:~-1%"=="\" set "_oRoot=%_oRoot:~0,-1%"
+
+echo "%2" | find /i "Wow6432Node" %nul1% && set _oArch=x86
+if not "%osarch%"=="x86" if not defined _oArch set _oArch=x64
+if "%osarch%"=="x86" set _oArch=x86
+
+call :msiofficedata %2
+
+echo:
+echo Processing Office...                    [MSI ^| %_version% ^| %_oArch%]
+
+if not defined _oIds (
+set error=1
+call :dk_color %Red% "Checking Installed Products             [Product IDs not found. Aborting activation...]"
+exit /b
+)
+
+call :ks_process
+exit /b
+
+::========================================================================================================================================
+

@@ -1,0 +1,8 @@
+:oe_editionchangepre
+
+cls
+set editedition=
+call :ch_getinfo
+call :oe_tempcleanup
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':getlist\:.*';. ([scriptblock]::Create($f[1]))"
+

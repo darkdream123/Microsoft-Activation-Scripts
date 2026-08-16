@@ -1,0 +1,25 @@
+:ts_resetall
+
+echo:
+if defined _vis (
+echo Processing Reset of Rearm / Timers...
+) else (
+echo Processing Reset of Rearm / Timers / Tamper / Lock...
+)
+echo:
+
+set resetstuff=1
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':tsforge\:.*';. ([scriptblock]::Create($f[1]))"
+
+if %errorlevel%==3 (
+call :dk_color %Red% "Reset Failed."
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+) else (
+call :dk_color %Green% "Reset process has been successfully done."
+)
+
+goto :dk_done
+
+::========================================================================================================================================
+

@@ -1,0 +1,55 @@
+:dk_checksku
+
+call :dk_reflection
+
+set osSKU=
+set slcSKU=
+set wmiSKU=
+set regSKU=
+set winsub=
+
+if %winbuild% GEQ 14393 (set info=Kernel-BrandingInfo) else (set info=Kernel-ProductInfo)
+set d1=%ref% [void]$TypeBuilder.DefinePInvokeMethod('SLGetWindowsInformationDWORD', 'slc.dll', 'Public, Static', 1, [int], @([String], [int].MakeByRefType()), 1, 3);
+set d1=%d1% $Sku = 0; [void]$TypeBuilder.CreateType()::SLGetWindowsInformationDWORD('%info%', [ref]$Sku); $Sku
+for /f "delims=" %%s in ('"%psc% %d1%"') do if not errorlevel 1 (set slcSKU=%%s)
+set slcSKU=%slcSKU: =%
+if "%slcSKU%"=="0" set slcSKU=
+for /f "tokens=* delims=0123456789" %%a in ("%slcSKU%") do (if not "[%%a]"=="[]" set slcSKU=)
+
+for /f "tokens=3 delims=." %%a in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\ProductOptions" /v OSProductPfn %nul6%') do set "regSKU=%%a"
+if %_wmic% EQU 1 for /f "tokens=2 delims==" %%a in ('"wmic Path Win32_OperatingSystem Get OperatingSystemSKU /format:LIST" %nul6%') do if not errorlevel 1 set "wmiSKU=%%a"
+if %_wmic% EQU 0 for /f "tokens=1" %%a in ('%psc% "([WMI]'Win32_OperatingSystem=@').OperatingSystemSKU" %nul6%') do if not errorlevel 1 set "wmiSKU=%%a"
+
+if %winbuild% GEQ 15063 %psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':winsubstatus\:.*';. ([scriptblock]::Create($f[1]))" %nul2% | find /i "Subscription_is_activated" %nul% && (
+if defined regSKU if defined slcSKU if not "%regSKU%"=="%slcSKU%" (
+set winsub=1
+set osSKU=%regSKU%
+)
+)
+
+if not defined osSKU set osSKU=%slcSKU%
+if not defined osSKU set osSKU=%wmiSKU%
+if not defined osSKU set osSKU=%regSKU%
+exit /b
+
+::  Get Windows Subscription status
+
+:winsubstatus:
+$DM = [AppDomain]::CurrentDomain.DefineDynamicAssembly(6, 1).DefineDynamicModule(4).DefineType(2)
+[void]$DM.DefinePInvokeMethod('ClipGetSubscriptionStatus', 'Clipc.dll', 22, 1, [Int32], @([IntPtr].MakeByRefType()), 1, 3).SetImplementationFlags(128)
+$m = [System.Runtime.InteropServices.Marshal]
+$p = $m::AllocHGlobal(12)
+$r = $DM.CreateType()::ClipGetSubscriptionStatus([ref]$p)
+if ($r -eq 0) {
+  $enabled = $m::ReadInt32($p)
+  if ($enabled -ge 1) {
+    $state = $m::ReadInt32($p, 8)
+    if ($state -eq 1) {
+        "Subscription_is_activated."
+    }
+  }
+}
+:winsubstatus:
+
+::  Get Windows permanent activation status
+

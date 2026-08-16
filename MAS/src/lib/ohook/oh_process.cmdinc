@@ -1,0 +1,45 @@
+:oh_process
+
+for %%# in (%_oIds%) do (
+
+set key=
+set _actid=
+set _lic=
+set _preview=
+set _License=%%#
+
+echo %%# | find /i "2024" %nul% && (
+if exist "!_oLPath!\ProPlus2024PreviewVL_*.xrm-ms" if not exist "!_oLPath!\ProPlus2024VL_*.xrm-ms" set _preview=-Preview
+)
+set _prod=%%#!_preview!
+
+call :ohookdata getinfo !_prod!
+
+if not "!key!"=="" (
+echo "!allapps!" | find /i "!_actid!" %nul1% || call :oh_installlic
+if not %oVer%==14 set generickey=1
+call :dk_inskey "[!key!] [!_prod!] [!_lic!]"
+) else (
+set error=1
+call :dk_color %Red% "Checking Product In Script              [Office %oVer%.0 !_prod! key not found in script]"
+call :dk_color %Blue% "Make sure you are using the latest version of MAS."
+set fixes=%fixes% %mas%
+call :dk_color %_Yellow% "%mas%"
+)
+)
+
+::  Add SharedComputerLicensing registry key if Retail Office C2R is installed on Windows Server
+::  https://learn.microsoft.com/en-us/office/troubleshoot/office-suite-issues/click-to-run-office-on-terminal-server
+
+if defined winserver if defined _config if exist "%_oLPath%\Word2019VL_KMS_Client_AE*.xrm-ms" (
+echo %_oIds% | find /i "Retail" %nul1% && (
+set scaIsNeeded=1
+reg add %_config% /v SharedComputerLicensing /t REG_SZ /d "1" /f %nul1%
+echo Adding SharedComputerLicensing Reg      [Successful] [Needed on Server With Retail Office]"
+)
+)
+
+exit /b
+
+::========================================================================================================================================
+

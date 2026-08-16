@@ -49,6 +49,12 @@
 
 ---
 
+## Building the scripts
+
+The shipped `.cmd` files are generated from the sources in [MAS/src](MAS/src), which hold a single copy of the code shared between the scripts. Edit the sources, then run `python tools/build.py`. See [MAS/src/README.md](MAS/src/README.md).
+
+---
+
 <div align="center">
 	
 ### Homepage - [https://massgrave.dev/](https://massgrave.dev/)

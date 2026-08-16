@@ -1,0 +1,41 @@
+:ks_starto16c2r
+
+::  Process Office 16.0 C2R
+
+if not defined o16c2r goto :ks_startmsi
+
+call :ks_reset
+call :dk_actids 0ff1ce15-a989-479d-af46-f275c6370663
+
+set oVer=16
+for /f "skip=2 tokens=2*" %%a in ('"reg query %o16c2r_reg% /v InstallPath" %nul6%') do (set "_oRoot=%%b\root")
+for /f "skip=2 tokens=2*" %%a in ('"reg query %o16c2r_reg%\Configuration /v Platform" %nul6%') do (set "_oArch=%%b")
+for /f "skip=2 tokens=2*" %%a in ('"reg query %o16c2r_reg%\Configuration /v VersionToReport" %nul6%') do (set "_version=%%b")
+for /f "skip=2 tokens=2*" %%a in ('"reg query %o16c2r_reg%\Configuration /v AudienceData" %nul6%') do (set "_AudienceData=^| %%b ")
+for /f "skip=2 tokens=2*" %%a in ('"reg query %o16c2r_reg%\Configuration /v ProductReleaseIds" %nul6%') do (set "_prids=%o16c2r_reg%\Configuration /v ProductReleaseIds" & set "_config=%o16c2r_reg%\Configuration")
+
+echo "%o16c2r_reg%" | find /i "Wow6432Node" %nul1% && (set _tok=9) || (set _tok=8)
+for /f "tokens=%_tok% delims=\" %%a in ('reg query "%o16c2r_reg%\ProductReleaseIDs" /s /f ".16" /k %nul6% ^| findstr /i "Retail Volume"') do (
+echo "!_oIds!" | find /i " %%a " %nul1% || (set "_oIds= !_oIds! %%a ")
+)
+set _oIds=%_oIds:.16=%
+set _o16c2rIds=%_oIds%
+
+set "_oLPath=%_oRoot%\Licenses16"
+set "_oIntegrator=%_oRoot%\integration\integrator.exe"
+
+echo:
+echo Processing Office...                    [C2R ^| %_version% %_AudienceData%^| %_oArch%]
+
+if not defined _oIds (
+call :dk_color %Red% "Checking Installed Products             [Product IDs not found. Aborting activation...]"
+set error=1
+goto :ks_startmsi
+)
+
+call :oh_expiredpreview 2016 2019 2021 2024
+if "%_actprojvis%"=="0" call :oh_fixprids
+call :ks_process
+
+::========================================================================================================================================
+

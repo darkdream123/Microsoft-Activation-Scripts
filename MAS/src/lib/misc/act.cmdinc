@@ -1,0 +1,19 @@
+:_act
+
+set prodname=
+if %_wmic% EQU 1 for /f "tokens=2 delims==" %%# in ('"wmic path !_path! where ID='!_actid!' get LicenseFamily /VALUE" 2^>nul') do (call set "prodname=%%#")
+if %_wmic% EQU 0 for /f "tokens=2 delims==" %%# in ('%psc% "(([WMISEARCHER]'SELECT LicenseFamily FROM !_path! WHERE ID=''!_actid!''').Get()).LicenseFamily | %% {echo ('LicenseFamily='+$_)}" 2^>nul') do (call set "prodname=%%#")
+for /f "tokens=1 delims=-_" %%a in ("%prodname%") do set "prodname=%%a"
+
+set _taskskip=
+if "%_actprojvis%"=="1" (
+echo: %prodname% | find /i "Office" %nul% && (
+echo: %prodname% | findstr /i "Project Visio" %nul% || (set _taskskip=1& exit /b)
+)
+)
+
+if defined t_name Activating: %prodname%
+
+set errorcode=12345
+set /a act_attempt=0
+

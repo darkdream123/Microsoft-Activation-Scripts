@@ -1,0 +1,26 @@
+:scandat
+
+set token=
+for %%# in (
+%SysPath%\spp\store_test\2.0\
+%SysPath%\spp\store\
+%SysPath%\spp\store\2.0\
+%Systemdrive%\Windows\ServiceProfiles\NetworkService\AppData\Roaming\Microsoft\SoftwareProtectionPlatform\
+%Systemdrive%\Windows\ServiceProfiles\NetworkService\AppData\Roaming\Microsoft\SoftwareLicensing\
+) do (
+
+if %1==check (
+if exist %%#tokens.dat set token=%%#tokens.dat
+)
+
+if %1==delete (
+if exist %%# (
+%nul% dir /a-d /s "%%#*.dat" && (
+attrib -r -s -h "%%#*.dat" /S
+del /S /F /Q "%%#*.dat"
+)
+)
+)
+)
+exit /b
+

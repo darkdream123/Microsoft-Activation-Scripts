@@ -1,0 +1,26 @@
+:dl_final
+
+echo:
+
+if defined regionchange (
+%psc% "Set-WinHomeLocation -GeoId %nation%" %nul%
+if !errorlevel! EQU 0 (
+echo Restoring Windows Region                [Successful]
+) else (
+call :dk_color %Red% "Restoring Windows Region                [Failed] [%name% - %nation%]"
+)
+)
+
+REM if %osSKU%==175 call :dk_color %Red% "%winos% does not support activation on non-azure platforms."
+
+::  Trigger reevaluation of SPP's Scheduled Tasks
+
+if defined _perm (
+call :dk_reeval %nul%
+)
+goto :dk_done
+
+::========================================================================================================================================
+
+::  Set variables
+

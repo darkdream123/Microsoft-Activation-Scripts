@@ -1,0 +1,32 @@
+:startmsi
+
+if defined o14msi call :oh_setspp 14
+if defined o14msi call :oh_processmsi 14 %o14msi_reg%
+call :oh_setspp
+if defined o15msi call :oh_processmsi 15 %o15msi_reg%
+if defined o16msi call :oh_processmsi 16 %o16msi_reg%
+
+::========================================================================================================================================
+
+call :oh_clearblock
+call :oh_uninstkey
+call :oh_licrefresh
+
+::========================================================================================================================================
+
+echo:
+if not defined error (
+call :dk_color %Green% "Office is permanently activated."
+if defined ohub call :dk_color %Gray% "Office apps such as Word, Excel are activated, use them directly. Ignore 'Buy' button in Office dashboard app."
+echo Help: %mas%troubleshoot
+) else (
+call :dk_color %Red% "Some errors were detected."
+if not defined ierror if not defined showfix call :dk_color %Blue% "%_fixmsg%"
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+)
+
+goto :dk_done
+
+::========================================================================================================================================
+

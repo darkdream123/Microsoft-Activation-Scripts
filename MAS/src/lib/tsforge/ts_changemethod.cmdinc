@@ -1,0 +1,50 @@
+:ts_changemethod
+
+cls
+if not defined terminal mode 76, 36
+
+echo:
+echo:
+echo:
+echo        ______________________________________________________________
+echo: 
+call :dk_color2 %_White% "             [1] " %_Green% "Auto"
+echo                  Builds ^>= 26100 - Windows only  - KMS4k
+echo                                    Other options - StaticCID
+echo:
+echo                  Builds ^<  26100 - ZeroCID
+echo              __________________________________________________
+echo: 
+echo              [2] StaticCID
+echo                  Needs Internet
+echo                  Not for Windows 7 or older
+echo              __________________________________________________
+echo:
+echo              [3] ZeroCID
+echo                  Works reliably on builds below 26100
+echo                  Does not work on builds above 26100.4188
+echo              __________________________________________________
+echo:
+echo              [4] KMS4k
+echo                  Volume licenses only
+echo                  Activates for 4000+ years
+echo              __________________________________________________
+echo:
+echo              [5] Learn More
+echo              [0] %_exitmsg%
+echo        ______________________________________________________________
+echo:
+call :dk_color2 %_White% "            " %_Green% "Choose a menu option using your keyboard..."
+choice /C:123450 /N
+set _el=!errorlevel!
+
+if !_el!==6 goto :ts_menu
+if !_el!==5  cls & start %mas%tsforge &goto :ts_menu
+if !_el!==4  cls & set "_actmethod=KMS4k" & goto :ts_menu
+if !_el!==3  cls & set "_actmethod=ZCID"  & goto :ts_menu
+if !_el!==2  cls & set "_actmethod=SCID"  & goto :ts_menu
+if !_el!==1  cls & set "_actmethod=Auto"  & goto :ts_menu
+goto :ts_changemethod
+
+::========================================================================================================================================
+
