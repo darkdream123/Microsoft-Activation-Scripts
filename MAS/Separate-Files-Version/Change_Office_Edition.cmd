@@ -1158,7 +1158,9 @@ echo Running the below command to trigger updates...
 echo:
 echo %updcommand%
 %updcommand%
+set errorcode=%errorlevel%
 echo:
+if %errorcode% NEQ 0 call :dk_color %Red% "The update command failed with error code %errorcode%."
 echo Check this webpage for help - %mas%troubleshoot
 goto :oe_goback
 
